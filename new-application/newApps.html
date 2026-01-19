@@ -1,0 +1,479 @@
+<div class="loan-application-modal">
+  <div class="modal-header">
+    <h2 style="margin:0;">
+      <i class="fas fa-file-alt"></i> Loan Application
+      <span class="app-number-display" style="font-weight:normal; margin-left:10px;">
+        <b id="app-number"></b>
+      </span>
+    </h2>
+    <span class="close-button" onclick="closeModal()">&times;</span>
+  </div>
+
+  <!-- Tab Navigation (5 tabs) -->
+  <div class="tab-navigation compact-tabs">
+    <button class="tab-button active" onclick="openTab('tab1')">Part 1: General</button>
+    <button class="tab-button" onclick="openTab('tab2')">Part 2: Ability</button>
+    <button class="tab-button" onclick="openTab('tab3')">Part 3: Risk & Security</button>
+    <button class="tab-button" onclick="openTab('tab4')">Part 4: Uploads</button>
+    <button class="tab-button" onclick="openTab('tab5')">Part 5: Review</button>
+  </div>
+
+  <!-- Tab 1: General Information to Loan History -->
+  <div id="tab1" class="tab-content active">
+    <form id="newApplicationFormTab1" onsubmit="event.preventDefault();openTab('tab2');">
+      <!-- Two-column flex layout for short fields (Name, Amount, Duration, Interest Rate) -->
+      <div class="two-column-flex">
+        <div class="form-group inline-group">
+          <label for="name"><strong>Name of Applicant:</strong></label>
+          <input type="text" id="name" name="name" required autocomplete="off" class="inline-input">
+        </div>
+
+        <div class="form-group inline-group">
+          <label for="amount"><strong>Amount Requested (GHS):</strong></label>
+          <input type="number" id="amount" name="amount" required min="0" step="0.01" autocomplete="off" class="inline-input">
+        </div>
+
+        <div class="form-group inline-group">
+          <label for="duration"><strong>Duration (months):</strong></label>
+          <input type="number" id="duration" name="duration" required min="1" step="1" autocomplete="off" class="inline-input">
+        </div>
+
+        <div class="form-group inline-group">
+          <label for="interestRate"><strong>Interest Rate (%):</strong></label>
+          <input type="number" id="interestRate" name="interestRate" required min="0" step="0.01" autocomplete="off" class="inline-input">
+        </div>
+      </div>
+
+      <!-- Purpose on its own full-width row (label + input inline) -->
+      <div class="form-group compact-group">
+        <label for="purpose"><strong>Purpose:</strong></label>
+        <input type="text" id="purpose" name="purpose" required autocomplete="off" class="inline-input">
+      </div>
+
+      <div class="compact-section">
+        <h4>Character:</h4>
+        <div class="form-group compact-group">
+          <textarea id="characterComment" name="characterComment" rows="2" placeholder="Add a summary of the applicant's character"></textarea>
+        </div>
+      </div>
+
+      <div class="compact-section">
+        <div class="section-header-row">
+          <h4>Loan History:</h4>
+          <button type="button" class="add-button compact-add" onclick="addLoanHistoryRow()">Add</button>
+        </div>
+        <div class="table-container-scroll compact-table">
+          <table id="loanHistoryTable">
+            <thead>
+              <tr>
+                <th>Disbursement Date</th>
+                <th>Tenure</th>
+                <th>Amount (GHS)</th>
+                <th>End Date</th>
+                <th>Comment</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rows will be added dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-actions compact-actions">
+        <button type="button" class="next-button" onclick="openTab('tab2')">Next</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tab 2: Ability -->
+  <div id="tab2" class="tab-content">
+    <form id="newApplicationFormTab2" onsubmit="event.preventDefault();openTab('tab3');">
+      <div class="compact-section">
+        <div class="section-header-row">
+          <h4>Personal Budget</h4>
+          <div>
+            <button type="button" class="add-button compact-add" onclick="addIncomeRow()">Add Income</button>
+            <button type="button" class="add-button compact-add" onclick="addExpenseRow()">Add Expense</button>
+            <button type="button" class="add-button compact-add" onclick="addRepaymentRow()">Add Repayment</button>
+          </div>
+        </div>
+        
+        <div class="table-container-scroll compact-table">
+          <table id="personalBudgetTable">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Amount (GHS)</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rows will be added dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Inline fields for budget summary -->
+      <div class="form-grid-two-columns inline-grid">
+        <div class="form-group inline-group">
+          <label for="netIncome"><strong>Net Income:</strong></label>
+          <input type="text" id="netIncome" name="netIncome" readonly class="inline-input">
+        </div>
+        <div class="form-group inline-group">
+          <label for="debtServiceRatio"><strong>Debt Service Ratio:</strong></label>
+          <input type="text" id="debtServiceRatio" name="debtServiceRatio" readonly class="inline-input">
+        </div>
+      </div>
+
+      <div class="compact-section">
+        <h4>Monthly Turnover and Balance Summary</h4>
+        <div class="table-container-scroll compact-table">
+          <table id="monthlyTurnoverTable">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>CR T/O</th>
+                <th>DR T/O</th>
+                <th>Max Bal</th>
+                <th>Min Bal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="text" id="month1" name="month1" value="Nov-24"></td>
+                <td><input type="number" id="crTO1" name="crTO1" value="530.36" oninput="calculateTotals()"></td>
+                <td><input type="number" id="drTO1" name="drTO1" value="607.00" oninput="calculateTotals()"></td>
+                <td><input type="number" id="maxBal1" name="maxBal1" value="1243.68" oninput="calculateTotals()"></td>
+                <td><input type="number" id="minBal1" name="minBal1" value="213.68" oninput="calculateTotals()"></td>
+              </tr>
+              <tr>
+                <td><input type="text" id="month2" name="month2" value="Dec-24"></td>
+                <td><input type="number" id="crTO2" name="crTO2" value="580.18" oninput="calculateTotals()"></td>
+                <td><input type="number" id="drTO2" name="drTO2" value="607.00" oninput="calculateTotals()"></td>
+                <td><input type="number" id="maxBal2" name="maxBal2" value="722.04" oninput="calculateTotals()"></td>
+                <td><input type="number" id="minBal2" name="minBal2" value="117.04" oninput="calculateTotals()"></td>
+              </tr>
+              <tr>
+                <td><input type="text" id="month3" name="month3" value="Jan-25"></td>
+                <td><input type="number" id="crTO3" name="crTO3" value="600.13" oninput="calculateTotals()"></td>
+                <td><input type="number" id="drTO3" name="drTO3" value="607.00" oninput="calculateTotals()"></td>
+                <td><input type="number" id="maxBal3" name="maxBal3" value="645.00" oninput="calculateTotals()"></td>
+                <td><input type="number" id="minBal3" name="minBal3" value="40.22" oninput="calculateTotals()"></td>
+              </tr>
+              <!-- Totals and averages -->
+              <tr class="calculation-row">
+                <td><strong>Total</strong></td>
+                <td><span id="totalCrTO">0.00</span></td>
+                <td><span id="totalDrTO">0.00</span></td>
+                <td><span id="totalMaxBal">0.00</span></td>
+                <td><span id="totalMinBal">0.00</span></td>
+              </tr>
+              <tr class="calculation-row">
+                <td><strong>Monthly Average</strong></td>
+                <td><span id="monthlyAvgCrTO">0.00</span></td>
+                <td><span id="monthlyAvgDrTO">0.00</span></td>
+                <td><span id="monthlyAvgMaxBal">0.00</span></td>
+                <td><span id="monthlyAvgMinBal">0.00</span></td>
+              </tr>
+              <tr class="calculation-row">
+                <td><strong>Weekly Average</strong></td>
+                <td><span id="weeklyAvgCrTO">0.00</span></td>
+                <td><span id="weeklyAvgDrTO">0.00</span></td>
+                <td><span id="weeklyAvgMaxBal">0.00</span></td>
+                <td><span id="weeklyAvgMinBal">0.00</span></td>
+              </tr>
+              <tr class="calculation-row">
+                <td><strong>Daily Average</strong></td>
+                <td><span id="dailyAvgCrTO">0.00</span></td>
+                <td><span id="dailyAvgDrTO">0.00</span></td>
+                <td><span id="dailyAvgMaxBal">0.00</span></td>
+                <td><span id="dailyAvgMinBal">0.00</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div class="tab-actions compact-actions">
+        <button type="button" class="back-button" onclick="openTab('tab1')">Back</button>
+        <button type="button" class="next-button" onclick="openTab('tab3')">Next</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tab 3: Margin to Risk Mitigation -->
+  <div id="tab3" class="tab-content">
+    <form id="newApplicationFormTab3" onsubmit="event.preventDefault();openTab('tab5');">
+      <div class="compact-section">
+        <h4>Margin:</h4>
+        <div class="form-group compact-group">
+          <textarea id="marginComment" name="marginComment" rows="2" placeholder="Describe margins"></textarea>
+        </div>
+      </div>
+      
+      <div class="compact-section">
+        <h4>Repayment:</h4>
+        <div class="form-group compact-group">
+          <textarea id="repaymentComment" name="repaymentComment" rows="2" placeholder="Enter repayment plan/comment"></textarea>
+        </div>
+      </div>
+      
+      <div class="compact-section">
+        <h4>Security & Guarantors:</h4>
+        <div class="form-group compact-group">
+          <textarea id="securityComment" name="securityComment" rows="2" placeholder="Describe security or guarantors"></textarea>
+        </div>
+      </div>
+      
+      <div class="compact-section">
+        <h4>Financials:</h4>
+        <div class="form-group compact-group">
+          <textarea id="financialsComment" name="financialsComment" rows="2"></textarea>
+        </div>
+      </div>
+      
+      <div class="compact-section">
+        <h4>Risks:</h4>
+        <div class="form-group compact-group">
+          <textarea id="risksComment" name="risksComment" rows="2"></textarea>
+        </div>
+      </div>
+      
+      <div class="compact-section">
+        <h4>Risk Mitigation:</h4>
+        <div class="form-group compact-group">
+          <textarea id="riskMitigationComment" name="riskMitigationComment" rows="2" placeholder="Describe mitigation strategies"></textarea>
+        </div>
+      </div>
+      
+      <div class="compact-section">
+        <h4>Credit Officer Recommendation:</h4>
+        <div class="form-group compact-group">
+          <textarea id="creditOfficerComment" name="creditOfficerComment" rows="2"></textarea>
+        </div>
+      </div>
+      
+      <div class="tab-actions compact-actions">
+        <button type="button" class="back-button" onclick="openTab('tab2')">Back</button>
+        <button type="button" class="next-button" onclick="openTab('tab4')">Next</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tab 4: Uploads (moved from main page) -->
+  <div id="tab4" class="tab-content">
+    <div class="compact-section uploads-section">
+      <h3><i class="fas fa-cloud-upload-alt"></i> Required Documents</h3>
+      <div class="upload-grid reduced-upload-grid">
+        <div class="upload-card small-upload-card" onclick="triggerFileUpload('bank-statement')">
+          <div class="upload-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+          <h4>Bank Statement</h4>
+          <p>Upload recent bank statement</p>
+          <span class="file-name" id="bank-statement-name">No file chosen</span>
+          <input type="file" id="bank-statement" style="display: none"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onchange="handleFileUpload(this, 'bank-statement-name', 'bankStatement')">
+        </div>
+        <div class="upload-card small-upload-card" onclick="triggerFileUpload('pay-slip')">
+          <div class="upload-icon"><i class="fas fa-receipt"></i></div>
+          <h4>Pay Slip</h4>
+          <p>Upload latest pay slip</p>
+          <span class="file-name" id="pay-slip-name">No file chosen</span>
+          <input type="file" id="pay-slip" style="display: none"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onchange="handleFileUpload(this, 'pay-slip-name', 'paySlip')">
+        </div>
+        <div class="upload-card small-upload-card" onclick="triggerFileUpload('undertaking')">
+          <div class="upload-icon"><i class="fas fa-handshake"></i></div>
+          <h4>Letter of Undertaking</h4>
+          <p>Upload signed undertaking</p>
+          <span class="file-name" id="undertaking-name">No file chosen</span>
+          <input type="file" id="undertaking" style="display: none"
+            accept=".pdf,.doc,.docx"
+            onchange="handleFileUpload(this, 'undertaking-name', 'undertaking')">
+        </div>
+        <div class="upload-card small-upload-card" onclick="triggerFileUpload('loan-statement')">
+          <div class="upload-icon"><i class="fas fa-file-invoice"></i></div>
+          <h4>Loan Statement</h4>
+          <p>Upload existing loan statement</p>
+          <span class="file-name" id="loan-statement-name">No file chosen</span>
+          <input type="file" id="loan-statement" style="display: none"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onchange="handleFileUpload(this, 'loan-statement-name', 'loanStatement')">
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-actions compact-actions">
+      <button type="button" class="back-button" onclick="openTab('tab3')">Back</button>
+      <button type="button" class="next-button" onclick="openTab('tab5')">Next</button>
+    </div>
+  </div>
+
+  <!-- Tab 5: Review -->
+  <div id="tab5" class="tab-content">
+    <h4>Review Your Application</h4>
+    <p>Please review all information before submitting your application.</p>
+
+    <div class="review-section compact-review">
+      <h5>General Information</h5>
+
+      <!-- Use same two-column layout as Tab 1 for review fields -->
+      <div class="two-column-flex review-two-column">
+        <div class="inline-review-item">
+          <div class="inline-label">Name of Applicant:</div>
+          <div class="inline-value" id="review-name"></div>
+        </div>
+
+        <div class="inline-review-item">
+          <div class="inline-label">Amount Requested:</div>
+          <div class="inline-value" id="review-amount"></div>
+        </div>
+
+        <div class="inline-review-item">
+          <div class="inline-label">Duration:</div>
+          <div class="inline-value" id="review-duration"></div>
+        </div>
+
+        <div class="inline-review-item">
+          <div class="inline-label">Interest Rate:</div>
+          <div class="inline-value" id="review-interestRate"></div>
+        </div>
+      </div>
+
+      <!-- Purpose full-width row for review -->
+      <div class="full-width-row review-purpose-row" style="margin-bottom:12px;">
+        <div class="inline-label" style="flex:0 0 140px; text-align:right;">Purpose:</div>
+        <div class="inline-value" id="review-purpose"></div>
+      </div>
+    </div>
+
+    <div class="review-section compact-review">
+      <h5>Character</h5>
+      <div class="review-item compact-review-item">
+        <div class="review-value" id="review-characterComment"></div>
+      </div>
+    </div>
+
+    <div class="review-section compact-review">
+      <h5>Loan History</h5>
+      <div class="table-container-scroll compact-table">
+        <table class="review-table" id="review-loanHistoryTable">
+          <thead>
+            <tr>
+              <th>Disbursement Date</th>
+              <th>Tenure</th>
+              <th>Amount (GHS)</th>
+              <th>End Date</th>
+              <th>Comment</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Will be populated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="review-section compact-review">
+      <h5>Ability</h5>
+      <div class="table-container-scroll compact-table">
+        <table class="review-table" id="review-personalBudgetTable">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Amount (GHS)</th>
+            </tr>
+          </thead>
+          <tbody><!-- Will be populated by JavaScript --></tbody>
+        </table>
+      </div>
+      
+      <div class="review-section compact-review">
+        <h5>Monthly Turnover and Balance Summary</h5>
+        <div class="table-container-scroll compact-table">
+          <table class="review-table" id="review-monthlyTurnoverTable">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>CR T/O</th>
+                <th>DR T/O</th>
+                <th>Max Bal</th>
+                <th>Min Bal</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="review-section compact-review">
+      <h5>Risks/Recommendations</h5>
+      <div class="review-category compact-review-category">
+        <h6 class="category-title">Margin</h6>
+        <div class="review-item compact-review-item">
+          <div class="review-value" id="review-marginComment"></div>
+        </div>
+      </div>
+      <div class="review-category compact-review-category">
+        <h6 class="category-title">Repayment</h6>
+        <div class="review-item compact-review-item">
+          <div class="review-value" id="review-repaymentComment"></div>
+        </div>
+      </div>
+      <div class="review-category compact-review-category">
+        <h6 class="category-title">Security & Guarantors</h6>
+        <div class="review-item compact-review-item">
+          <div class="review-value" id="review-securityComment"></div>
+        </div>
+      </div>
+      <div class="review-category compact-review-category">
+        <h6 class="category-title">Financials</h6>
+        <div class="review-item compact-review-item">
+          <div class="review-value" id="review-financialsComment"></div>
+        </div>
+      </div>
+      <div class="review-category compact-review-category">
+        <h6 class="category-title">Risks</h6>
+        <div class="review-item compact-review-item">
+          <div class="review-value" id="review-risksComment"></div>
+        </div>
+      </div>
+      <div class="review-category compact-review-category">
+        <h6 class="category-title">Risk Mitigation</h6>
+        <div class="review-item compact-review-item">
+          <div class="review-value" id="review-riskMitigationComment"></div>
+        </div>
+      </div>
+      <div class="review-category compact-review-category">
+        <h6 class="category-title">Credit Officer Recommendation</h6>
+        <div class="review-item compact-review-item">
+          <div class="review-value" id="review-creditOfficerComment"></div>
+        </div>
+      </div>        
+    </div>
+
+    <div class="review-section compact-review">
+      <h5>Uploaded Documents</h5>
+      <div class="review-item compact-review-item">
+        <ul id="review-uploads-list" style="margin:0; padding-left:18px;">
+          <!-- populated by JS: li items for each uploaded file or "Not uploaded" -->
+        </ul>
+      </div>
+    </div>
+
+    <!-- Modal footer actions -->
+    <div class="modal-footer" style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+      <button type="button" class="back-button" onclick="openTab('tab4')">Back</button>
+      <button type="button" class="btn-outline" onclick="saveDraftFromModal()">Save as Draft</button>
+      <button type="button" class="btn-primary" onclick="submitNewApplication()">
+        <i class="fas fa-paper-plane"></i> Submit Application
+      </button>
+    </div>
+  </div>
+</div>
