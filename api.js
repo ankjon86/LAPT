@@ -1,10 +1,8 @@
-// api.js - JSONP API Service for Loan Application Dashboard
-
 // API Service for Google Apps Script Backend
 class ApiService {
   constructor() {
-    // UPDATE THIS with your Google Apps Script Web App URL
-    this.BASE_URL = ScriptApp.getService().getUrl();
+    // Your Google Apps Script Web App URL
+    this.BASE_URL = 'https://script.google.com/macros/s/AKfycbxFMMpImLf5BdTkOihOd4RZ-Kk70smJxse8M7sHFrTElgGKXheyOPyIyY0prvPPgVD8/exec';
     this.cache = new Map();
     this.requestCount = 0;
     this.activeRequests = new Map();
@@ -22,15 +20,15 @@ class ApiService {
     
     // Check cache
     if (useCache && this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey);
+      console.log('Cache hit for:', cacheKey);
+      return Promise.resolve(this.cache.get(cacheKey));
     }
     
     try {
       // Show loading indicator
-      if (showLoading && typeof showLoading === 'function') {
-        showLoading(true);
-      } else if (showLoading && window.showLoading) {
-        window.showLoading(true);
+      if (showLoading) {
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.style.display = 'flex';
       }
       
       const requestId = ++this.requestCount;
@@ -48,16 +46,19 @@ class ApiService {
         url.searchParams.append('callback', callbackName);
         url.searchParams.append('_', Date.now()); // Cache buster
         
+        console.log('API Request:', { action, data, url: url.toString() });
+        
         // Set up callback
         window[callbackName] = (response) => {
+          console.log('API Response:', { action, response });
+          
           // Cleanup
           this.cleanupRequest(script, callbackName);
           
           // Hide loading
-          if (showLoading && typeof showLoading === 'function') {
-            showLoading(false);
-          } else if (showLoading && window.hideLoading) {
-            window.hideLoading();
+          if (showLoading) {
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) loadingEl.style.display = 'none';
           }
           
           // Remove from active requests
@@ -78,17 +79,17 @@ class ApiService {
         };
         
         // Set up error handling
-        script.onerror = () => {
+        script.onerror = (error) => {
+          console.error('API Script Error:', error);
           this.cleanupRequest(script, callbackName);
           
-          if (showLoading && typeof showLoading === 'function') {
-            showLoading(false);
-          } else if (showLoading && window.hideLoading) {
-            window.hideLoading();
+          if (showLoading) {
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) loadingEl.style.display = 'none';
           }
           
           this.activeRequests.delete(requestId);
-          reject(new Error('Network error: Failed to load script'));
+          reject(new Error(`Network error: Failed to load script from ${url.toString()}`));
         };
         
         // Set timeout
@@ -96,7 +97,7 @@ class ApiService {
           if (this.activeRequests.has(requestId)) {
             this.cleanupRequest(script, callbackName);
             this.activeRequests.delete(requestId);
-            reject(new Error(`Request timeout after ${timeout}ms`));
+            reject(new Error(`Request timeout after ${timeout}ms for action: ${action}`));
           }
         }, timeout);
         
@@ -111,12 +112,12 @@ class ApiService {
       
     } catch (error) {
       // Hide loading on error
-      if (showLoading && typeof showLoading === 'function') {
-        showLoading(false);
-      } else if (showLoading && window.hideLoading) {
-        window.hideLoading();
+      if (showLoading) {
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.style.display = 'none';
       }
       
+      console.error('API Request Error:', error);
       throw error;
     }
   }
@@ -137,6 +138,7 @@ class ApiService {
   // Clear cache
   clearCache() {
     this.cache.clear();
+    console.log('API cache cleared');
   }
 
   // Cancel all pending requests
@@ -148,6 +150,7 @@ class ApiService {
       this.cleanupRequest(request.script, request.callbackName);
     }
     this.activeRequests.clear();
+    console.log('All pending API requests cancelled');
   }
 
   // ----------- AUTHENTICATION APIs -----------
@@ -157,10 +160,6 @@ class ApiService {
 
   async verifyUser(name, options = {}) {
     return this.request('verify_user', { name }, options);
-  }
-
-  async logout(options = {}) {
-    return this.request('logout', {}, options);
   }
 
   // ----------- APPLICATION APIs -----------
@@ -200,42 +199,6 @@ class ApiService {
     }, options);
   }
 
-  async saveApplicationDraft(appObj, userName, options = {}) {
-    return this.request('save_application_draft', {
-      appObj,
-      userName
-    }, options);
-  }
-
-  async updateApplication(appNumber, updates, userName, options = {}) {
-    return this.request('update_application', {
-      appNumber,
-      updates,
-      userName
-    }, options);
-  }
-
-  async updateApplicationStatus(appNumber, status, comments, userName, options = {}) {
-    return this.request('update_application_status', {
-      appNumber,
-      status,
-      comments,
-      userName
-    }, options);
-  }
-
-  async getDraftApplications(userName, options = {}) {
-    return this.request('get_draft_applications', { userName }, options);
-  }
-
-  async getPendingApplications(userName, options = {}) {
-    return this.request('get_pending_applications', { userName }, options);
-  }
-
-  async getApprovedApplications(userName, options = {}) {
-    return this.request('get_approved_applications', { userName }, options);
-  }
-
   // ----------- USER MANAGEMENT APIs -----------
   async getAllUsers(options = {}) {
     return this.request('get_all_users', {}, options);
@@ -249,15 +212,7 @@ class ApiService {
     return this.request('delete_user', { name: userName }, options);
   }
 
-  async updateUser(userName, updates, options = {}) {
-    return this.request('update_user', { userName, updates }, options);
-  }
-
-  async getUsersByRole(role, options = {}) {
-    return this.request('get_users_by_role', { role }, options);
-  }
-
-  // ----------- FILE APIs -----------
+  // ----------- UTILITY APIs -----------
   async copyLendingTemplate(appNumber, folderId, options = {}) {
     return this.request('copy_lending_template', {
       appNumber,
@@ -265,54 +220,14 @@ class ApiService {
     }, options);
   }
 
-  async uploadFile(appNumber, fileType, fileData, fileName, options = {}) {
-    return this.request('upload_file', {
-      appNumber,
-      fileType,
-      fileData,
-      fileName
-    }, options);
-  }
-
-  async getDocumentUrl(documentId, options = {}) {
-    return this.request('get_document_url', { documentId }, options);
-  }
-
-  // ----------- WORKFLOW APIs -----------
-  async getWorkflowHistory(appNumber, options = {}) {
-    return this.request('get_workflow_history', { appNumber }, options);
-  }
-
-  async processWorkflowAction(appNumber, action, comments, userName, options = {}) {
-    return this.request('process_workflow_action', {
-      appNumber,
-      action,
-      comments,
+  async saveApplicationDraft(appObj, userName, options = {}) {
+    return this.request('save_application_draft', {
+      appObj,
       userName
     }, options);
   }
 
-  async getNextWorkflowStep(appNumber, userName, options = {}) {
-    return this.request('get_next_workflow_step', {
-      appNumber,
-      userName
-    }, options);
-  }
-
-  // ----------- DASHBOARD & STATS APIs -----------
-  async getDashboardStats(userName, options = {}) {
-    return this.request('get_dashboard_stats', { userName }, options);
-  }
-
-  async getUserNotifications(userName, options = {}) {
-    return this.request('get_user_notifications', { userName }, options);
-  }
-
-  async getRecentActivity(options = {}) {
-    return this.request('get_recent_activity', {}, options);
-  }
-
-  // ----------- SYSTEM APIs -----------
+  // ----------- TEST API -----------
   async testConnection(options = {}) {
     try {
       const response = await this.request('test_connection', {}, options);
@@ -329,119 +244,114 @@ class ApiService {
       };
     }
   }
-
-  async initializeSystem(options = {}) {
-    return this.request('initialize_system', {}, options);
-  }
-
-  async getSystemSettings(options = {}) {
-    return this.request('get_system_settings', {}, options);
-  }
-
-  async updateSystemSettings(settings, options = {}) {
-    return this.request('update_system_settings', { settings }, options);
-  }
-
-  // ----------- PRINT & EXPORT APIs -----------
-  async printApplication(appNumber, options = {}) {
-    return this.request('print_application', { appNumber }, options);
-  }
-
-  async exportApplication(appNumber, format = 'pdf', options = {}) {
-    return this.request('export_application', { appNumber, format }, options);
-  }
 }
 
 // Create global API instance
 window.apiService = new ApiService();
 
-// Legacy compatibility layer
+// Legacy compatibility layer (for existing code that uses google.script.run)
 window.ApplicationAPI = {
-  getApplicationsByStatus: async (status, options = {}) => {
-    const response = await window.apiService.getApplications(status, options);
-    return {
-      success: response.success,
-      data: response.data || []
-    };
+  getApplicationsByStatus: async (status) => {
+    const response = await window.apiService.getApplications(status);
+    return response.data || [];
   },
 
-  getApplicationDetails: async (appNumber, userName, options = {}) => {
-    const response = await window.apiService.getApplicationDetails(appNumber, userName, options);
+  getApplicationDetails: async (appNumber, userName) => {
+    const response = await window.apiService.getApplicationDetails(appNumber, userName);
+    if (response.success && response.data) {
+      return response;
+    } else {
+      throw new Error(response?.message || 'Failed to get application details');
+    }
+  },
+
+  saveProcessApplicationForm: async (appNumber, formData, userName, isDraft = false) => {
+    const response = await window.apiService.saveApplication(appNumber, formData, userName, isDraft);
     return response;
   },
 
-  saveApplication: async (appNumber, formData, userName, isDraft = false, options = {}) => {
-    const response = await window.apiService.saveApplication(appNumber, formData, userName, isDraft, options);
-    return response;
+  getAllApplicationCounts: async () => {
+    const response = await window.apiService.getApplicationCounts();
+    return response.data || {};
   },
 
-  getApplicationCounts: async (options = {}) => {
-    const response = await window.apiService.getApplicationCounts(options);
-    return {
-      success: response.success,
-      data: response.data || {}
-    };
+  getApplicationsCountForUser: async (userName) => {
+    const response = await window.apiService.getApplicationCountsForUser(userName);
+    return response.count || 0;
   },
 
-  getNewApplicationContext: async (options = {}) => {
-    const response = await window.apiService.getNewApplicationContext(options);
-    return {
-      success: response.success,
-      data: response.data || {}
-    };
+  getNewApplicationContext: async () => {
+    const response = await window.apiService.getNewApplicationContext();
+    return response.data || {};
+  },
+
+  getNewApplications: async () => {
+    const response = await window.apiService.getApplications('NEW');
+    return response.data || [];
+  },
+
+  getPendingApplications: async () => {
+    const response = await window.apiService.getApplications('PENDING');
+    return response.data || [];
+  },
+
+  getPendingApprovalApplications: async () => {
+    const response = await window.apiService.getApplications('PENDING_APPROVAL');
+    return response.data || [];
+  },
+
+  getApprovedApplications: async () => {
+    const response = await window.apiService.getApplications('APPROVED');
+    return response.data || [];
   }
 };
 
 window.UserAPI = {
-  authenticateUser: async (name, options = {}) => {
-    const response = await window.apiService.login(name, options);
+  authenticateUser: async (name) => {
+    const response = await window.apiService.login(name);
     return response;
   },
 
-  getAllUsers: async (options = {}) => {
-    const response = await window.apiService.getAllUsers(options);
-    return {
-      success: response.success,
-      data: response.data || []
-    };
+  getAllUsers: async () => {
+    const response = await window.apiService.getAllUsers();
+    return response.data || [];
   },
 
-  addUser: async (userData, options = {}) => {
-    const response = await window.apiService.addUser(userData, options);
+  addUser: async (userData) => {
+    const response = await window.apiService.addUser(userData);
     return response;
   },
 
-  deleteUser: async (userName, options = {}) => {
-    const response = await window.apiService.deleteUser(userName, options);
+  deleteUser: async (userName) => {
+    const response = await window.apiService.deleteUser(userName);
     return response;
   },
 
-  getApplicationsCountForUser: async (userName, options = {}) => {
-    const response = await window.apiService.getApplicationCountsForUser(userName, options);
+  getApplicationsCountForUser: async (userName) => {
+    const response = await window.apiService.getApplicationCountsForUser(userName);
     return response.count || 0;
   }
 };
 
 window.UtilityAPI = {
-  copyLendingTemplate: async (appNumber, folderId, options = {}) => {
-    const response = await window.apiService.copyLendingTemplate(appNumber, folderId, options);
+  copyLendingTemplate: async (appNumber, folderId) => {
+    const response = await window.apiService.copyLendingTemplate(appNumber, folderId);
     return response.url;
   },
 
-  saveApplicationDraft: async (appObj, userName, options = {}) => {
-    const response = await window.apiService.saveApplicationDraft(appObj, userName, options);
+  saveApplicationDraft: async (appObj, userName) => {
+    const response = await window.apiService.saveApplicationDraft(appObj, userName);
     return response;
   },
 
-  submitApplication: async (appObj, userName, options = {}) => {
-    const response = await window.apiService.submitApplication(appObj, userName, options);
+  submitApplication: async (appObj, userName) => {
+    const response = await window.apiService.submitApplication(appObj, userName);
     return response;
   }
 };
 
-// Utility functions
+// Utility functions for easy access
 window.apiUtils = {
-  // Test API connection
   testApi: async () => {
     try {
       const result = await window.apiService.testConnection();
@@ -453,39 +363,29 @@ window.apiUtils = {
     }
   },
 
-  // Clear API cache
   clearCache: () => {
     window.apiService.clearCache();
-    console.log('API cache cleared');
   },
 
-  // Get active request count
   getActiveRequestCount: () => {
     return window.apiService.activeRequests.size;
   },
 
-  // Cancel all pending requests
   cancelAllRequests: () => {
     window.apiService.cancelAllRequests();
-    console.log('All pending API requests cancelled');
-  },
-
-  // Get API base URL
-  getBaseUrl: () => {
-    return window.apiService.BASE_URL;
   }
 };
 
-// Initialize API on page load
+// Initialize and test connection on page load
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('API Service initialized. Base URL:', window.apiService.BASE_URL);
+  console.log('API Service initialized with URL:', window.apiService.BASE_URL);
   
-  // Test connection on startup (optional)
+  // Test connection on startup (optional - can be commented out)
   // window.apiUtils.testApi().then(result => {
   //   if (result.connected) {
-  //     console.log('API connection successful');
+  //     console.log('✅ API connection successful');
   //   } else {
-  //     console.warn('API connection failed:', result.message);
+  //     console.warn('⚠️ API connection failed:', result.message);
   //   }
   // });
 });
