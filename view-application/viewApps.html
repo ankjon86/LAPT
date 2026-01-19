@@ -1,0 +1,442 @@
+<div id="viewApplicationModal" class="modal">
+  <div class="modal-content">
+    <div class="loan-application-modal">
+      <!-- Modal Header: Updated design -->
+      <div class="modal-header">
+        <div class="header-left">
+          <div id="applicationNumber" class="application-number">N/A</div>
+          <div class="applicant-info">
+            <div id="applicationApplicantName" class="applicant-name">N/A</div>
+          </div>
+          <div id="applicationStatusBadge" class="status-badge status-pending">
+            <i class="fas fa-clock"></i> Under Review
+          </div>
+        </div>
+        
+        <div class="header-actions">
+          <button type="button" class="action-btn" id="btn-print" onclick="printApplicationDetails()">
+            <i class="fas fa-print"></i> Print
+          </button>
+          <button type="button" class="action-btn primary" id="btn-export" onclick="exportApplicationDetails()">
+            <i class="fas fa-download"></i> Export
+          </button>
+          <button type="button" id="btn-edit" class="action-btn edit-btn" title="Edit Application" onclick="openEditSection('tab1')">
+            <i class="fas fa-pencil-alt"></i> Edit
+          </button>
+          <span class="close-button" onclick="closeViewApplicationModal()">&times;</span>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <!-- General Information Section -->
+        <div class="compact-view section-block" id="section-general">
+          <div class="section-header">
+            <h5>General Information</h5>
+          </div>
+
+          <div class="two-column-flex view-two-column">
+            <div class="inline-view-item">
+              <div class="inline-label">Name of Applicant:</div>
+              <div class="inline-value" id="view-name"></div>
+            </div>
+
+            <div class="inline-view-item">
+              <div class="inline-label">Amount Requested:</div>
+              <div class="inline-value" id="view-amount"></div>
+            </div>
+
+            <div class="inline-view-item">
+              <div class="inline-label">Duration:</div>
+              <div class="inline-value" id="view-duration"></div>
+            </div>
+
+            <div class="inline-view-item">
+              <div class="inline-label">Interest Rate:</div>
+              <div class="inline-value" id="view-interestRate"></div>
+            </div>
+
+            <div class="full-width-row view-purpose-row">
+              <div class="inline-label">Purpose:</div>
+              <div class="inline-value" id="view-purpose"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Character Section -->
+        <div class="compact-view section-block" id="section-character">
+          <div class="section-header">
+            <h5>Character</h5>
+          </div>
+          <div class="view-value" id="view-characterComment"></div>
+        </div>
+
+        <!-- Loan History Section -->
+        <div class="compact-view section-block" id="section-loanhistory">
+          <div class="section-header">
+            <h5>Loan History</h5>
+          </div>
+          <div class="table-container-scroll">
+            <table class="view-table" id="view-loanHistoryTable">
+              <thead>
+                <tr>
+                  <th>Disbursement Date</th>
+                  <th>Tenure</th>
+                  <th>Amount (GHS)</th>
+                  <th>End Date</th>
+                  <th>Comment</th>
+                </tr>
+              </thead>
+              <tbody><!-- populated dynamically --></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Ability Section -->
+        <div class="compact-view section-block" id="section-ability">
+          <div class="section-header">
+            <h5>Ability</h5>
+          </div>
+
+          <!-- Personal Budget Table -->
+          <div class="table-container-scroll">
+            <table class="view-table" id="view-personalBudgetTable">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Amount (GHS)</th>
+                </tr>
+              </thead>
+              <tbody><!-- populated dynamically --></tbody>
+            </table>
+          </div>
+
+          <!-- Budget Summary -->
+          <div class="view-grid-two-columns inline-view-grid">
+            <div class="view-item inline-view-item">
+              <div class="view-label inline-label">Net Income:</div>
+              <div class="view-value inline-value" id="view-netIncome"></div>
+            </div>
+            <div class="view-item inline-view-item">
+              <div class="view-label inline-label">Debt Service Ratio:</div>
+              <div class="view-value inline-value" id="view-debtServiceRatio"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly Turnover Section -->
+        <div class="compact-view section-block" id="section-turnover">
+          <div class="section-header">
+            <h5>Monthly Turnover and Balance Summary</h5>
+          </div>
+
+          <div class="table-container-scroll">
+            <table class="view-table" id="view-monthlyTurnoverTable">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>CR T/O</th>
+                  <th>DR T/O</th>
+                  <th>Max Bal</th>
+                  <th>Min Bal</th>
+                </tr>
+              </thead>
+              <tbody><!-- populated dynamically --></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Risks & Recommendations Section -->
+        <div class="compact-view section-block" id="section-risks">
+          <div class="section-header">
+            <h5>Risks/Recommendations</h5>
+          </div>
+
+          <div class="view-category">
+            <h6 class="category-title">Margin</h6>
+            <div class="view-value" id="view-marginComment"></div>
+          </div>
+          <div class="view-category">
+            <h6 class="category-title">Repayment</h6>
+            <div class="view-value" id="view-repaymentComment"></div>
+          </div>
+          <div class="view-category">
+            <h6 class="category-title">Security & Guarantors</h6>
+            <div class="view-value" id="view-securityComment"></div>
+          </div>
+          <div class="view-category">
+            <h6 class="category-title">Financials</h6>
+            <div class="view-value" id="view-financialsComment"></div>
+          </div>
+          <div class="view-category">
+            <h6 class="category-title">Risks</h6>
+            <div class="view-value" id="view-risksComment"></div>
+          </div>
+          <div class="view-category">
+            <h6 class="category-title">Risk Mitigation</h6>
+            <div class="view-value" id="view-riskMitigationComment"></div>
+          </div>
+
+          <div class="view-details-section">
+            <h4>Recommendations</h4>
+
+            <div class="view-details-category">
+              <h5>Credit Officer Recommendation</h5>
+              <div class="view-details-value" id="view-details-creditOfficerComment"></div>
+            </div>
+            <div class="view-details-category">
+              <h5>AMLRO Comments</h5>
+              <div class="view-details-value" id="view-details-amlroComments"></div>
+            </div>
+            <div class="view-details-category">
+              <h5>Head of Credit Recommendation</h5>
+              <div class="view-details-value" id="view-details-headOfCredit"></div>
+            </div>
+            <div class="view-details-category">
+              <h5>Branch Manager Recommendation</h5>
+              <div class="view-details-value" id="view-details-branchManager"></div>
+            </div>
+            <div class="view-details-category">
+              <h5>Approver 1 Comments</h5>
+              <div class="view-details-value" id="view-details-approver1Comments"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Documents Section -->
+        <div class="view-details-section section-block" id="section-documents">
+          <div class="section-header">
+            <h4>Documents Submitted</h4>
+          </div>
+
+          <div>
+            <div class="documents-container">
+              <div class="document-item">
+                <div class="document-left">
+                  <div class="document-label">Bank Statement:</div>
+                  <div class="document-status" id="view-doc-bankStatement-status">Not Uploaded</div>
+                </div>
+                <div class="document-action">
+                  <button type="button" class="view-button" id="view-button-bankStatement" onclick="openDocument('bankStatement')">View</button>
+                </div>
+              </div>
+
+              <div class="document-item">
+                <div class="document-left">
+                  <div class="document-label">Payslip:</div>
+                  <div class="document-status" id="view-doc-payslip-status">Not Uploaded</div>
+                </div>
+                <div class="document-action">
+                  <button type="button" class="view-button" id="view-button-payslip" onclick="openDocument('payslip')">View</button>
+                </div>
+              </div>
+
+              <div class="document-item">
+                <div class="document-left">
+                  <div class="document-label">Letter of Undertaking:</div>
+                  <div class="document-status" id="view-doc-letterOfUndertaking-status">Not Uploaded</div>
+                </div>
+                <div class="document-action">
+                  <button type="button" class="view-button" id="view-button-letterOfUndertaking" onclick="openDocument('letterOfUndertaking')">View</button>
+                </div>
+              </div>
+
+              <div class="document-item">
+                <div class="document-left">
+                  <div class="document-label">Loan Statement:</div>
+                  <div class="document-status" id="view-doc-loanStatement-status">Not Uploaded</div>
+                </div>
+                <div class="document-action">
+                  <button type="button" class="view-button" id="view-button-loanStatement" onclick="openDocument('loanStatement')">View</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recommendations editors (hidden by default, shown by role/stage) -->
+        <div class="view-details-section" style="margin-top:12px;">
+          <h4>Recommendations (Edit)</h4>
+          <div>
+            <div class="view-details-category comment-editor" data-role="Credit Officer" data-stages="New,Assessment" style="display:none;">
+              <h5>Credit Officer Recommendation</h5>
+              <div class="view-details-value">
+                <textarea id="view-details-creditOfficerComment-textarea" class="form-input view-textarea" rows="3" placeholder="Enter recommendation"></textarea>
+              </div>
+            </div>
+
+            <div class="view-details-category comment-editor" data-role="AMLRO" data-stages="Compliance" style="display:none;">
+              <h5>AMLRO Comments</h5>
+              <div class="view-details-value">
+                <textarea id="view-details-amlroComments-textarea" class="form-input view-textarea" rows="3" placeholder="Enter comments"></textarea>
+              </div>
+            </div>
+
+            <div class="view-details-category comment-editor" data-role="Head of Credit" data-stages="Ist Review" style="display:none;">
+              <h5>Head of Credit Recommendation</h5>
+              <div class="view-details-value">
+                <textarea id="view-details-headOfCredit-textarea" class="form-input view-textarea" rows="3" placeholder="Enter recommendation"></textarea>
+              </div>
+            </div>
+
+            <div class="view-details-category comment-editor" data-role="Branch Manager/Approver" data-stages="2nd Review" style="display:none;">
+              <h5>Branch Manager Recommendation</h5>
+              <div class="view-details-value">
+                <textarea id="view-details-branchManager-textarea" class="form-input view-textarea" rows="3" placeholder="Enter recommendation"></textarea>
+              </div>
+            </div>
+
+            <div class="view-details-category comment-editor" data-role="Approver" data-stages="Approval" style="display:none;">
+              <h5>Approver 1 Comments</h5>
+              <div class="view-details-value">
+                <textarea id="view-details-approver1Comments-textarea" class="form-input view-textarea" rows="3" placeholder="Enter comments"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Signature & Print Section: Only visible when Approved -->
+        <div id="signatures-section" class="signatures-section" style="display: none; margin-top:12px;">
+          <h4>Signatures</h4>
+          <div class="signatures-flex">
+            <div class="signature-block">
+              <div class="signature-line"></div>
+              <div class="signature-label">Credit Officer</div>
+              <div class="signature-name" id="signature-creditOfficer-name"></div>
+              <div class="signature-position">Credit Officer</div>
+            </div>
+            <div class="signature-block">
+              <div class="signature-line"></div>
+              <div class="signature-label">Head of Credit</div>
+              <div class="signature-name" id="signature-headOfCredit-name"></div>
+              <div class="signature-position">Head of Credit</div>
+            </div>
+            <div class="signature-block">
+              <div class="signature-line"></div>
+              <div class="signature-label">Branch Manager</div>
+              <div class="signature-name" id="signature-branchManager-name"></div>
+              <div class="signature-position">Branch Manager</div>
+            </div>
+          </div>
+          <div style="text-align:right; margin-top: 1.5em;">
+            <button type="button" onclick="printApplicationDetails()">Print</button>
+          </div>
+        </div>
+
+        <!-- Footer actions -->
+        <div class="compact-actions">
+          <button type="button" id="btn-approve" onclick="saveStageComment(false,'APPROVE')" style="display:none;">Approve</button>
+          <button type="button" id="btn-revert" onclick="saveStageComment(true,'REVERT')" style="display:none;">Revert</button>
+          <button type="button" id="btn-submit" onclick="saveStageComment(false,'SUBMIT')" style="display:none;">Submit</button>
+          <button type="button" class="back-button" onclick="closeViewApplicationModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  (function() {
+    // Auto-resize textareas in view application modal
+    function autoResizeViewTextarea(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = (textarea.scrollHeight) + 'px';
+    }
+
+    function initViewAutoResize() {
+      document.querySelectorAll('#viewApplicationModal textarea').forEach(t => {
+        // disable native resizer to keep more consistent layout
+        t.style.resize = 'none';
+        autoResizeViewTextarea(t);
+        t.addEventListener('input', () => {
+          autoResizeViewTextarea(t);
+        }, { passive: true });
+      });
+    }
+
+    // Observe table body changes in view application modal
+    function initViewTableObservers() {
+      const tableIds = [
+        'view-loanHistoryTable',
+        'view-personalBudgetTable', 
+        'view-monthlyTurnoverTable'
+      ];
+      
+      tableIds.forEach(id => {
+        const table = document.getElementById(id);
+        if (!table) return;
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+        const observer = new MutationObserver(() => {
+          // force a reflow so the modal's size updates immediately
+          const mc = document.querySelector('#viewApplicationModal .modal-content');
+          if (mc) {
+            mc.style.maxHeight = 'none';
+            // small noop to force layout update:
+            mc.getBoundingClientRect();
+          }
+        });
+        observer.observe(tbody, { childList: true, subtree: true });
+      });
+    }
+
+    // Initialize modal when it's opened
+    function initViewApplicationModal() {
+      initViewAutoResize();
+      initViewTableObservers();
+      
+      // Also handle comment editor textareas that might be shown/hidden dynamically
+      const commentEditors = document.querySelectorAll('#viewApplicationModal .comment-editor');
+      commentEditors.forEach(editor => {
+        const textarea = editor.querySelector('textarea');
+        if (textarea) {
+          textarea.style.resize = 'none';
+          autoResizeViewTextarea(textarea);
+          textarea.addEventListener('input', () => {
+            autoResizeViewTextarea(textarea);
+          }, { passive: true });
+        }
+      });
+    }
+
+    // Run initialization when DOM content loads
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize when modal is present in DOM
+      if (document.getElementById('viewApplicationModal')) {
+        // Set up observer for when modal is shown
+        const modal = document.getElementById('viewApplicationModal');
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'class') {
+              if (modal.classList.contains('active')) {
+                // Modal is now active, initialize
+                setTimeout(() => {
+                  initViewApplicationModal();
+                }, 100); // Small delay to ensure DOM is ready
+              }
+            }
+          });
+        });
+        
+        observer.observe(modal, { attributes: true });
+      }
+    });
+
+    // Global function to initialize view application modal
+    window.viewApplicationModalInit = function() {
+      initViewApplicationModal();
+    };
+
+    // Function to handle comment editor visibility changes
+    window.refreshViewApplicationModal = function() {
+      initViewApplicationModal();
+    };
+
+    // Function to handle dynamic loading of recommendations
+    window.updateViewApplicationRecommendations = function() {
+      const textareas = document.querySelectorAll('#viewApplicationModal .comment-editor textarea');
+      textareas.forEach(textarea => {
+        autoResizeViewTextarea(textarea);
+      });
+    };
+
+  })();
+</script>
