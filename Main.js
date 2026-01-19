@@ -280,31 +280,38 @@ function verifyUserOnLoad(loggedInName) {
 }
 
 // ----------- LOGIN FORM HANDLER -----------
-document.getElementById('login-form').addEventListener('submit', function(e) {
+// Update the login form submit handler
+document.getElementById('login-form').addEventListener('submit', async function(e) {
   e.preventDefault();
   const name = document.getElementById('login-name').value.trim();
   if (!name) {
     alert('Name is required!');
     return;
   }
-  showLoading();
-  google.script.run
-    .withSuccessHandler(function(authResult) {
-      hideLoading();
-      if (authResult.success) {
-        handleSuccessfulLogin(name, authResult.user);
-      } else {
-        handleFailedLogin(authResult.message);
-      }
-    })
-    .withFailureHandler(function(error) {
-      hideLoading();
-      alert('Login error: ' + error.message);
-      document.getElementById('login-name').value = '';
-      document.getElementById('login-name').focus();
-    })
-    .authenticateUser(name);
+  await handleLogin(name);
 });
+
+// Update badge count function
+async function updateUserNotificationBadge() {
+  const userName = localStorage.getItem('loggedInName');
+  if (!userName) return;
+  
+  try {
+    const response = await window.apiService.getApplicationCountsForUser(userName);
+    const count = response.count || 0;
+    const badge = document.getElementById('user-notification-badge');
+    if (badge) {
+      if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  } catch (error) {
+    console.error('Error updating badge:', error);
+  }
+}
 function handleSuccessfulLogin(name, user) {
   localStorage.setItem('loggedInName', name);
   localStorage.setItem('userRole', user.role);
@@ -656,16 +663,31 @@ if (cachedElements['viewApplicationModal']) {
   });
 }
 
-function loadApplications(sectionId, options = { showLoading: true }) {
+async function loadApplications(sectionId, options = {}) {
   const sectionMap = {
-    'new': ['new-list','getNewApplications'],
-    'pending': ['pending-list','getPendingApplications'],
-    'pending-approvals': ['pending-approvals-list','getPendingApprovalApplications'],
-    'approved': ['approved-list','getApprovedApplications']
+    'new': 'NEW',
+    'pending': 'PENDING',
+    'pending-approvals': 'PENDING_APPROVAL',
+    'approved': 'APPROVED'
   };
-  if (sectionMap[sectionId]) {
-    const [tableId, statusFunction] = sectionMap[sectionId];
-    populateTable(tableId, statusFunction, options);
+  
+  const status = sectionMap[sectionId];
+  if (!status) return;
+  
+  try {
+    const response = await window.apiService.getApplications(status, {
+      showLoading: options.showLoading !== false
+    });
+    
+    if (response.success) {
+      populateTable(`${sectionId}-list`, response.data);
+    }
+  } catch (error) {
+    console.error('Error loading applications:', error);
+    const tbody = document.getElementById(`${sectionId}-list`);
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${error.message}</td></tr>`;
+    }
   }
 }
 function updateBadgeCounts() {
@@ -849,4 +871,5 @@ function initializeAppCount() {
       .withSuccessHandler(function(count) { lastAppCount = count; })
       .getApplicationsCountForUser(userName);
   }
+
 }
