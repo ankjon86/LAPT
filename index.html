@@ -8,260 +8,383 @@
   <meta name="theme-color" content="#2563eb">
   <link rel="manifest" href="manifest.json">
   
-  <!-- CSS files (adjust paths as needed) -->
+  <!-- CSS files -->
   <link rel="stylesheet" href="Main.css">
   <link rel="stylesheet" href="newApps.css">
   <link rel="stylesheet" href="viewApps.css">
-
+  
+  <!-- Add login page specific styles -->
+  <style>
+    /* Login Page Styles */
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+    }
+    
+    .login-container {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+      padding: 40px;
+      text-align: center;
+    }
+    
+    .login-logo {
+      font-size: 2.5rem;
+      color: #2563eb;
+      margin-bottom: 20px;
+    }
+    
+    .login-title {
+      font-size: 1.5rem;
+      color: #333;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    
+    .login-subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 0.9rem;
+    }
+    
+    .login-form {
+      text-align: left;
+    }
+    
+    .login-form .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .login-form .form-label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 500;
+    }
+    
+    .login-form .form-input {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+      box-sizing: border-box;
+    }
+    
+    .login-form .form-input:focus {
+      outline: none;
+      border-color: #2563eb;
+    }
+    
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-top: 10px;
+    }
+    
+    .login-btn:hover {
+      background: #1d4ed8;
+    }
+    
+    .login-btn:active {
+      transform: translateY(1px);
+    }
+    
+    .login-footer {
+      margin-top: 30px;
+      color: #666;
+      font-size: 0.85rem;
+    }
+    
+    /* Hide dashboard content when not logged in */
+    .dashboard-content {
+      display: none;
+    }
+    
+    /* Show dashboard when logged in */
+    .logged-in .dashboard-content {
+      display: block;
+    }
+    
+    .logged-in .login-page {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-  <div class="top-menu">
-    <div class="menu-left">
-      <button class="add-app-btn" onclick="showNewApplicationModal()">
-        <i class="fas fa-plus"></i> Add New Application
-      </button>
-    </div>
-    <div class="app-title">
-      <i class="fas fa-layer-group"></i> LOAN APPLICATION TRACKER
-    </div>
-    <div class="user-info">
-      <span class="date-display" id="current-date"></span>
-      <div class="user-notification-container">
-        <span id="logged-in-user"></span>
-        <span id="user-notification-badge" class="notification-badge"></span>
+  <!-- Login Page (shown by default) -->
+  <div class="login-page" id="login-page">
+    <div class="login-container">
+      <div class="login-logo">
+        <i class="fas fa-hand-holding-usd"></i>
       </div>
-      <button class="logout-btn" onclick="logout()" title="Logout">
-        <i class="fas fa-sign-out-alt"></i>
-      </button>
+      <h1 class="login-title">Loan Application Tracker</h1>
+      <p class="login-subtitle">Sign in to access the dashboard</p>
+      
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <label class="form-label">Enter Your Name</label>
+          <input type="text" class="form-input" id="login-name" placeholder="Enter your name" required autofocus>
+        </div>
+        <button type="submit" class="login-btn">
+          <i class="fas fa-sign-in-alt"></i> Sign In
+        </button>
+      </form>
+      
+      <div class="login-footer">
+        <p>Enter your registered name to access the application dashboard</p>
+      </div>
     </div>
   </div>
-  
-  <div class="container">
-    <div class="side-menu">
-      <div class="menu-section">
-        <div class="menu-title"><i class="fas fa-tasks"></i> Applications</div>
-        <button class="menu-btn" onclick="showSection('new')">
-          <i class="fas fa-file-alt"></i> New <span class="badge" id="new-count">0</span>
-        </button>
-        <button class="menu-btn active" onclick="showSection('pending')">
-          <i class="fas fa-clock"></i> Pending <span class="badge" id="pending-count">0</span>
-        </button>
-        <button class="menu-btn" onclick="showSection('pending-approvals')">
-          <i class="fas fa-hourglass-half"></i> Pending Approvals <span class="badge" id="pending-approvals-count">0</span>
-        </button>
-        <button class="menu-btn" onclick="showSection('approved')">
-          <i class="fas fa-check-circle"></i> Approved <span class="badge" id="approved-count">0</span>
+
+  <!-- Dashboard Content (hidden until logged in) -->
+  <div class="dashboard-content">
+    <!-- Original dashboard content goes here -->
+    <div class="top-menu">
+      <div class="menu-left">
+        <button class="add-app-btn" onclick="showNewApplicationModal()">
+          <i class="fas fa-plus"></i> Add New Application
         </button>
       </div>
-      <div class="menu-section">
-        <div class="menu-title"><i class="fas fa-users"></i> User Management</div>
-        <button class="menu-btn" onclick="showSection('add-user')">
-          <i class="fas fa-user-plus"></i> Add User
-        </button>
-        <button class="menu-btn" onclick="showSection('users-list')">
-          <i class="fas fa-list"></i> Users List
+      <div class="app-title">
+        <i class="fas fa-layer-group"></i> LOAN APPLICATION TRACKER
+      </div>
+      <div class="user-info">
+        <span class="date-display" id="current-date"></span>
+        <div class="user-notification-container">
+          <span id="logged-in-user"></span>
+          <span id="user-notification-badge" class="notification-badge"></span>
+        </div>
+        <button class="logout-btn" onclick="logout()" title="Logout">
+          <i class="fas fa-sign-out-alt"></i>
         </button>
       </div>
     </div>
     
-    <div class="main-content">
-            <!-- Applications Tables -->
-      <div id="new" class="content-section">
-        <div class="section-header">
-          <h2><i class="fas fa-file-alt"></i> New Applications</h2>
-          <div class="section-actions">
-            <button class="btn-outline" onclick="refreshApplications()">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
+    <div class="container">
+      <div class="side-menu">
+        <div class="menu-section">
+          <div class="menu-title"><i class="fas fa-tasks"></i> Applications</div>
+          <button class="menu-btn" onclick="showSection('new')">
+            <i class="fas fa-file-alt"></i> New <span class="badge" id="new-count">0</span>
+          </button>
+          <button class="menu-btn active" onclick="showSection('pending')">
+            <i class="fas fa-clock"></i> Pending <span class="badge" id="pending-count">0</span>
+          </button>
+          <button class="menu-btn" onclick="showSection('pending-approvals')">
+            <i class="fas fa-hourglass-half"></i> Pending Approvals <span class="badge" id="pending-approvals-count">0</span>
+          </button>
+          <button class="menu-btn" onclick="showSection('approved')">
+            <i class="fas fa-check-circle"></i> Approved <span class="badge" id="approved-count">0</span>
+          </button>
         </div>
-        <div class="table-container">
-          <table class="applications-table">
-            <thead>
-              <tr>
-                <th>Application Number</th>
-                <th>Applicant Name</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Action By</th>
-              </tr>
-            </thead>
-            <tbody id="new-list">
-              <tr><td colspan="5" class="loading">Loading applications...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div id="pending" class="content-section">
-        <div class="section-header">
-          <h2><i class="fas fa-clock"></i> Pending Applications</h2>
-          <div class="section-actions">
-            <button class="btn-outline" onclick="refreshApplications()">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
-        </div>
-        <div class="table-container">
-          <table class="applications-table">
-            <thead>
-              <tr>
-                <th>Application Number</th>
-                <th>Applicant Name</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Action By</th>
-              </tr>
-            </thead>
-            <tbody id="pending-list">
-              <tr><td colspan="5" class="loading">Loading applications...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div id="pending-approvals" class="content-section">
-        <div class="section-header">
-          <h2><i class="fas fa-hourglass-half"></i> Pending Approvals</h2>
-          <div class="section-actions">
-            <button class="btn-outline" onclick="refreshApplications()">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
-        </div>
-        <div class="table-container">
-          <table class="applications-table">
-            <thead>
-              <tr>
-                <th>Application Number</th>
-                <th>Applicant Name</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Action By</th>
-              </tr>
-            </thead>
-            <tbody id="pending-approvals-list">
-              <tr><td colspan="5" class="loading">Loading applications...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div id="approved" class="content-section">
-        <div class="section-header">
-          <h2><i class="fas fa-check-circle"></i> Approved Applications</h2>
-          <div class="section-actions">
-            <button class="btn-outline" onclick="refreshApplications()">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
-        </div>
-        <div class="table-container">
-          <table class="applications-table">
-            <thead>
-              <tr>
-                <th>Application Number</th>
-                <th>Applicant Name</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Action By</th>
-              </tr>
-            </thead>
-            <tbody id="approved-list">
-              <tr><td colspan="5" class="loading">Loading applications...</td></tr>
-            </tbody>
-          </table>
+        <div class="menu-section">
+          <div class="menu-title"><i class="fas fa-users"></i> User Management</div>
+          <button class="menu-btn" onclick="showSection('add-user')">
+            <i class="fas fa-user-plus"></i> Add User
+          </button>
+          <button class="menu-btn" onclick="showSection('users-list')">
+            <i class="fas fa-list"></i> Users List
+          </button>
         </div>
       </div>
       
+      <div class="main-content">
+        <!-- Applications Tables -->
+        <div id="new" class="content-section">
+          <div class="section-header">
+            <h2><i class="fas fa-file-alt"></i> New Applications</h2>
+            <div class="section-actions">
+              <button class="btn-outline" onclick="refreshApplications()">
+                <i class="fas fa-sync-alt"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="applications-table">
+              <thead>
+                <tr>
+                  <th>Application Number</th>
+                  <th>Applicant Name</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Action By</th>
+                </tr>
+              </thead>
+              <tbody id="new-list">
+                <tr><td colspan="5" class="loading">Loading applications...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="pending" class="content-section">
+          <div class="section-header">
+            <h2><i class="fas fa-clock"></i> Pending Applications</h2>
+            <div class="section-actions">
+              <button class="btn-outline" onclick="refreshApplications()">
+                <i class="fas fa-sync-alt"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="applications-table">
+              <thead>
+                <tr>
+                  <th>Application Number</th>
+                  <th>Applicant Name</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Action By</th>
+                </tr>
+              </thead>
+              <tbody id="pending-list">
+                <tr><td colspan="5" class="loading">Loading applications...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="pending-approvals" class="content-section">
+          <div class="section-header">
+            <h2><i class="fas fa-hourglass-half"></i> Pending Approvals</h2>
+            <div class="section-actions">
+              <button class="btn-outline" onclick="refreshApplications()">
+                <i class="fas fa-sync-alt"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="applications-table">
+              <thead>
+                <tr>
+                  <th>Application Number</th>
+                  <th>Applicant Name</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Action By</th>
+                </tr>
+              </thead>
+              <tbody id="pending-approvals-list">
+                <tr><td colspan="5" class="loading">Loading applications...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="approved" class="content-section">
+          <div class="section-header">
+            <h2><i class="fas fa-check-circle"></i> Approved Applications</h2>
+            <div class="section-actions">
+              <button class="btn-outline" onclick="refreshApplications()">
+                <i class="fas fa-sync-alt"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="applications-table">
+              <thead>
+                <tr>
+                  <th>Application Number</th>
+                  <th>Applicant Name</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Action By</th>
+                </tr>
+              </thead>
+              <tbody id="approved-list">
+                <tr><td colspan="5" class="loading">Loading applications...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- User Management: Add User -->
+        <div id="add-user" class="content-section">
+          <div class="section-header">
+            <h2><i class="fas fa-user-plus"></i> Add User</h2>
+          </div>
+          <div class="form-container">
+            <form id="add-user-form">
+              <div class="form-group">
+                <label class="form-label">Name *</label>
+                <input type="text" class="form-input" id="new-user-name" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Level *</label>
+                <input type="number" class="form-input" id="new-user-level" required min="1">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Role *</label>
+                <select class="form-input" id="new-user-role" required>
+                  <option value="">Select Role</option>
+                  <option value="Credit Sales Officer">Credit Sales Officer</option>
+                  <option value="Credit Analyst">Credit Analyst</option>
+                  <option value="AMLRO">AMLRO</option>
+                  <option value="Head of Credit">Head of Credit</option>
+                  <option value="Branch Manager/Approver">Branch Manager/Approver</option>
+                  <option value="Approver">Approver</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="showSection('users-list')">Cancel</button>
+                <button type="submit" class="btn-primary">Add User</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        
+        <!-- Users List -->
+        <div id="users-list" class="content-section">
+          <!-- Users table structure -->
+        </div>
+      </div>
+    </div>
 
-      
-      <!-- User Management: Add User -->
-      <div id="add-user" class="content-section">
-        <div class="section-header">
-          <h2><i class="fas fa-user-plus"></i> Add User</h2>
-        </div>
-        <div class="form-container">
-          <form id="add-user-form">
-            <div class="form-group">
-              <label class="form-label">Name *</label>
-              <input type="text" class="form-input" id="new-user-name" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Level *</label>
-              <input type="number" class="form-input" id="new-user-level" required min="1">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Role *</label>
-              <select class="form-input" id="new-user-role" required>
-                <option value="">Select Role</option>
-                <option value="Credit Sales Officer">Credit Sales Officer</option>
-                <option value="Credit Analyst">Credit Analyst</option>
-                <option value="AMLRO">AMLRO</option>
-                <option value="Head of Credit">Head of Credit</option>
-                <option value="Branch Manager/Approver">Branch Manager/Approver</option>
-                <option value="Approver">Approver</option>
-                <option value="Admin">Admin</option>
-              </select>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn-secondary" onclick="showSection('users-list')">Cancel</button>
-              <button type="submit" class="btn-primary">Add User</button>
-            </div>
-          </form>
-        </div>
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay">
+      <div class="spinner"></div>
+      <p>Processing...</p>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal-overlay">
+      <!-- Success modal content -->
+    </div>
+
+    <!-- New Application Modal -->
+    <div id="newApplicationModal" class="modal">
+      <div class="modal-content compact-modal">
+        <!-- PASTE newApps.html CONTENT HERE DIRECTLY -->
       </div>
-      
-      <!-- Users List -->
-      <div id="users-list" class="content-section">
-        <!-- Users table structure -->
+    </div>
+
+    <!-- View Application Modal -->
+    <div id="viewApplicationModal" class="modal">
+      <div class="modal-content large-modal">
+        <!-- PASTE viewApps.html CONTENT HERE DIRECTLY -->
       </div>
     </div>
   </div>
 
-  <!-- Login Modal -->
-  <div id="login-modal" class="modal-overlay">
-    <div class="modal-message">
-      <h2><i class="fas fa-sign-in-alt"></i> Login</h2>
-      <form id="login-form">
-        <div class="form-group">
-          <label class="form-label">Enter Your Name</label>
-          <input type="text" class="form-input" id="login-name" required>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn-primary">Login</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Loading Overlay -->
-  <div id="loading" class="loading-overlay">
-    <div class="spinner"></div>
-    <p>Processing...</p>
-  </div>
-
-  <!-- Success Modal -->
-  <div id="success-modal" class="modal-overlay">
-    <!-- Success modal content -->
-  </div>
-
-<!-- New Application Modal (loaded from external file) -->
-<div id="newApplicationModal" class="modal">
-  <div class="modal-content compact-modal">
-    <!-- Content will be loaded here -->
-  </div>
-</div>
-
-<!-- View Application Modal (loaded from external file) -->
-<div id="viewApplicationModal" class="modal">
-  <div class="modal-content large-modal">
-    <!-- Content will be loaded here -->
-  </div>
-</div>
-
-  <!-- Scripts (single file or adjust paths) -->
+  <!-- Scripts -->
   <script src="Main.js"></script>
   <script src="api.js"></script>
   <script src="newApps.js"></script>
   <script src="viewApps.js"></script>
-
 </body>
 </html>
