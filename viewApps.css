@@ -1,0 +1,709 @@
+
+/* ====== VIEW APPLICATION MODAL SPECIFIC STYLES ====== */
+
+/* Modal positioning for view mode - matches newApplicationModal */
+#viewApplicationModal.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.45);
+  transition: opacity 0.25s ease;
+}
+
+#viewApplicationModal.modal.active {
+  display: block;
+  opacity: 1;
+}
+
+/* Modal content - same size as newApplicationModal */
+#viewApplicationModal .modal-content {
+  background-color: #fff;
+  margin: 4% auto;
+  padding: 12px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+  transform: translateY(-14px);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+#viewApplicationModal.modal.active .modal-content {
+  transform: translateY(0);
+}
+
+/* Loan application modal container */
+#viewApplicationModal .loan-application-modal {
+  font-family: 'Inter', Arial, sans-serif;
+  padding: 12px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  max-width: 800px;
+  margin: 0 auto;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+/* ====== UPDATED MODAL HEADER DESIGN ====== */
+#viewApplicationModal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eaeaea;
+  background: #f8fafc;
+  border-radius: 10px 10px 0 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+#viewApplicationModal .header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Application number styling */
+#viewApplicationModal .application-number {
+  font-size: 14px;
+  font-weight: 800;
+  color: #3b82f6;
+  letter-spacing: 0.4px;
+  background: #eff6ff;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+/* Applicant info styling */
+#viewApplicationModal .applicant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#viewApplicationModal .applicant-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+#viewApplicationModal .applicant-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+/* Status badge styling */
+#viewApplicationModal .status-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#viewApplicationModal .status-badge i {
+  font-size: 10px;
+}
+
+/* Status badge colors */
+#viewApplicationModal .status-new { 
+  background-color: #f0f9ff; 
+  color: #0369a1; 
+  border: 1px solid #bae6fd; 
+}
+#viewApplicationModal .status-pending { 
+  background-color: #fffbeb; 
+  color: #b45309; 
+  border: 1px solid #fde68a; 
+}
+#viewApplicationModal .status-pending-approval { 
+  background-color: #e0f2fe; 
+  color: #0c4a6e; 
+  border: 1px solid #7dd3fc; 
+}
+#viewApplicationModal .status-approved { 
+  background-color: #f0fdf4; 
+  color: #166534; 
+  border: 1px solid #bbf7d0; 
+}
+#viewApplicationModal .status-reverted { 
+  background-color: #fef2f2; 
+  color: #991b1b; 
+  border: 1px solid #fecaca; 
+}
+
+/* Header actions */
+#viewApplicationModal .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Action buttons - matching newApplicationModal style */
+#viewApplicationModal .action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+#viewApplicationModal .action-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+#viewApplicationModal .action-btn.primary {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+#viewApplicationModal .action-btn.primary:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+#viewApplicationModal .action-btn.edit-btn {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+#viewApplicationModal .action-btn.edit-btn:hover {
+  background: #0da271;
+  border-color: #0da271;
+}
+
+/* Close button styling - matches newApplicationModal */
+#viewApplicationModal .close-button {
+  color: #8b98a8;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+
+#viewApplicationModal .close-button:hover {
+  color: #000;
+}
+
+/* ====== REST OF THE VIEW MODAL STYLES ====== */
+
+/* Modal body styling */
+#viewApplicationModal .modal-body {
+  padding: 12px;
+}
+
+/* Section blocks */
+#viewApplicationModal .section-block {
+  margin-bottom: 12px;
+  background: white;
+  border: 1px solid #eaeaea;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+/* Section headers */
+#viewApplicationModal .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f1f1;
+}
+
+#viewApplicationModal .section-header h4,
+#viewApplicationModal .section-header h5 {
+  margin: 0;
+  color: #1a1a1a;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+#viewApplicationModal .section-header h4 {
+  font-size: 15px;
+}
+
+/* Two-column flex layout - matches newApplicationModal */
+#viewApplicationModal .two-column-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+#viewApplicationModal .two-column-flex .inline-view-item {
+  flex: 1 1 calc(50% - 12px);
+  min-width: 200px;
+}
+
+/* Inline view items - matches review tab */
+#viewApplicationModal .inline-view-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+#viewApplicationModal .inline-label {
+  flex: 0 0 120px;
+  text-align: right;
+  font-weight: 600;
+  color: #4a4a4a;
+  font-size: 13px;
+}
+
+#viewApplicationModal .inline-value {
+  flex: 1;
+  min-width: 0;
+  padding: 6px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1a1a1a;
+  word-break: break-word;
+}
+
+/* Full width row for purpose */
+#viewApplicationModal .full-width-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* View values for text areas */
+#viewApplicationModal .view-value {
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #eaeaea;
+  font-size: 13px;
+  color: #1a1a1a;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  min-height: 60px;
+}
+
+/* Tables - matches newApplicationModal */
+#viewApplicationModal .view-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+
+#viewApplicationModal .view-table,
+#viewApplicationModal .view-table th,
+#viewApplicationModal .view-table td {
+  border: 1px solid #ececec;
+}
+
+#viewApplicationModal .view-table th,
+#viewApplicationModal .view-table td {
+  padding: 6px;
+  text-align: left;
+}
+
+#viewApplicationModal .view-table th {
+  background-color: #f8f9fa;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-size: 12.5px;
+}
+
+#viewApplicationModal .view-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* Table container scroll - matches newApplicationModal */
+#viewApplicationModal .table-container-scroll {
+  overflow-x: auto;
+  margin: 8px 0;
+  border-radius: 6px;
+  border: 1px solid #eaeaea;
+}
+
+#viewApplicationModal .table-container-scroll::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+#viewApplicationModal .table-container-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.02);
+  border-radius: 3px;
+}
+
+#viewApplicationModal .table-container-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.09);
+  border-radius: 3px;
+}
+
+#viewApplicationModal .table-container-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.13);
+}
+
+/* View grid for budget summary */
+#viewApplicationModal .view-grid-two-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+#viewApplicationModal .view-grid-two-columns .inline-view-item {
+  flex: 1 1 calc(50% - 12px);
+  min-width: 200px;
+}
+
+/* View categories */
+#viewApplicationModal .view-category {
+  margin-bottom: 8px;
+  background-color: white;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+#viewApplicationModal .category-title {
+  color: #3b8b3b;
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 2px solid #e6f3e6;
+  padding-bottom: 4px;
+}
+
+/* View details sections */
+#viewApplicationModal .view-details-section {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fbfbfb;
+  border-radius: 8px;
+  border: 1px solid #eaeaea;
+}
+
+#viewApplicationModal .view-details-section h4 {
+  color: #1a1a1a;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #eaeaea;
+}
+
+#viewApplicationModal .view-details-category {
+  margin-bottom: 12px;
+}
+
+#viewApplicationModal .view-details-category h5 {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+#viewApplicationModal .view-details-value {
+  padding: 8px;
+  background-color: #f8f8f8;
+  border-radius: 6px;
+  min-height: 20px;
+  font-size: 13px;
+  color: #1a1a1a;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Comment editor textareas */
+#viewApplicationModal .view-textarea {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'Inter', Arial, sans-serif;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  resize: vertical;
+  min-height: 64px;
+}
+
+#viewApplicationModal .view-textarea:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.06);
+  outline: none;
+}
+
+/* Documents container */
+#viewApplicationModal .documents-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+#viewApplicationModal .document-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #eaeaea;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+#viewApplicationModal .document-item:hover {
+  border-color: rgba(59, 130, 246, 0.18);
+  box-shadow: 0 3px 8px rgba(16, 24, 40, 0.06);
+}
+
+#viewApplicationModal .document-label {
+  font-weight: 700;
+  color: #475569;
+  font-size: 12.5px;
+}
+
+#viewApplicationModal .document-status {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+#viewApplicationModal .document-status.uploaded {
+  color: #10b981;
+}
+
+#viewApplicationModal .view-button {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #eaeaea;
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+#viewApplicationModal .view-button:hover {
+  background: #e8eef6;
+  border-color: #cbd5e1;
+}
+
+/* Signatures section */
+#viewApplicationModal .signatures-section {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #eaeaea;
+}
+
+#viewApplicationModal .signatures-flex {
+  display: flex;
+  justify-content: space-around;
+  gap: 12px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
+#viewApplicationModal .signature-block {
+  text-align: center;
+  flex: 1;
+  min-width: 160px;
+}
+
+#viewApplicationModal .signature-line {
+  width: 100%;
+  height: 1px;
+  background: #64748b;
+  margin: 28px 0 8px 0;
+  opacity: 0.25;
+}
+
+#viewApplicationModal .signature-label {
+  color: #64748b;
+  font-size: 11.5px;
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+#viewApplicationModal .signature-name {
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 6px 0;
+}
+
+#viewApplicationModal .signature-position {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Action buttons - matches newApplicationModal */
+#viewApplicationModal .compact-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #eaeaea;
+}
+
+#viewApplicationModal .back-button {
+  background-color: #6c757d;
+  color: white;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color 0.18s ease;
+}
+
+#viewApplicationModal .back-button:hover {
+  background-color: #5a6268;
+}
+
+#viewApplicationModal #btn-approve,
+#viewApplicationModal #btn-submit {
+  background-color: #4CAF50;
+  color: white;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color 0.18s ease;
+}
+
+#viewApplicationModal #btn-approve:hover,
+#viewApplicationModal #btn-submit:hover {
+  background-color: #45a049;
+}
+
+#viewApplicationModal #btn-revert {
+  background-color: #f59e0b;
+  color: white;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color 0.18s ease;
+}
+
+#viewApplicationModal #btn-revert:hover {
+  background-color: #d97706;
+}
+
+/* Responsive design - matches newApplicationModal */
+@media (max-width: 768px) {
+  #viewApplicationModal .modal-content {
+    width: 95%;
+    margin: 8% auto;
+  }
+  
+  #viewApplicationModal .modal-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  #viewApplicationModal .header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  #viewApplicationModal .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  #viewApplicationModal .two-column-flex .inline-view-item,
+  #viewApplicationModal .view-grid-two-columns .inline-view-item {
+    flex: 1 1 100%;
+  }
+  
+  #viewApplicationModal .inline-label {
+    flex: 0 0 100px;
+    text-align: left;
+  }
+  
+  #viewApplicationModal .documents-container {
+    grid-template-columns: 1fr;
+  }
+  
+  #viewApplicationModal .signatures-flex {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  #viewApplicationModal .compact-actions {
+    flex-direction: column;
+  }
+  
+  #viewApplicationModal .compact-actions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  #viewApplicationModal .loan-application-modal {
+    padding: 10px;
+  }
+  
+  #viewApplicationModal .modal-header {
+    padding: 10px;
+  }
+  
+  #viewApplicationModal .modal-body {
+    padding: 10px;
+  }
+  
+  #viewApplicationModal .section-block {
+    padding: 10px;
+  }
+  
+  #viewApplicationModal .inline-view-item,
+  #viewApplicationModal .full-width-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  #viewApplicationModal .inline-label {
+    text-align: left;
+    flex: none;
+  }
+  
+  #viewApplicationModal .action-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}
