@@ -54,16 +54,36 @@ function resetNewApplicationModal() {
   calculateBudget();
 }
 
-// Replace the showNewApplicationModal function starting at line 41:
+// Replace the showNewApplicationModal function
 function showNewApplicationModal(existingAppNumber = null) {
+  console.log('showNewApplicationModal called with:', existingAppNumber);
+  
+  // First, make sure the modal element exists and show it
+  const modal = document.getElementById('newApplicationModal');
+  if (!modal) {
+    console.error('Modal element not found!');
+    alert('Error: Application form not loaded properly. Please refresh the page.');
+    return;
+  }
+  
+  // Show the modal immediately
+  modal.style.display = 'block';
+  document.body.style.overflow = 'hidden'; // Prevent background scrolling
+  
   if (existingAppNumber) {
     // Load existing draft application
     loadExistingApplication(existingAppNumber);
     return;
   }
   
-  // Ask server for new app context (app number + folder) - FOR NEW APPLICATIONS
-  // Use apiService instead of google.script.run
+  // For new applications, get context
+  const loggedInUser = localStorage.getItem('loggedInName');
+  if (!loggedInUser) {
+    alert('Please login first!');
+    closeNewApplicationModal();
+    return;
+  }
+  
   showLoading();
   
   window.apiService.getNewApplicationContext({ showLoading: false })
@@ -75,32 +95,122 @@ function showNewApplicationModal(existingAppNumber = null) {
         window.currentAppNumber = ctx.appNumber;
         window.currentAppFolderId = ctx.folderId;
 
-        // reflect in modal header/app-number
+        // Update modal header
         const appNumberEl = document.getElementById('app-number');
-        if (appNumberEl) appNumberEl.textContent = window.currentAppNumber || '';
-
-        const modal = document.getElementById('newApplicationModal');
-        if (modal) {
-          modal.style.display = 'block';
-          resetNewApplicationModal();
-          // open default or requested edit tab
-          const requestedTab = sessionStorage.getItem('editTab');
-          if (requestedTab) {
-            openTab(requestedTab);
-            sessionStorage.removeItem('editTab');
-          } else {
-            openTab('tab1');
-          }
+        if (appNumberEl) {
+          appNumberEl.textContent = window.currentAppNumber || '';
         }
+
+        // Reset form and open first tab
+        resetNewApplicationModal();
+        openTab('tab1');
+        
+        // Initialize any required scripts
+        setTimeout(() => {
+          calculateTotals();
+          calculateBudget();
+          safeAttachRepaymentListener();
+        }, 100);
       } else {
         alert('Error starting new application: ' + (response?.message || 'Failed to get application context'));
+        closeNewApplicationModal();
       }
     })
     .catch(function(error) {
       hideLoading();
       alert('Error starting new application: ' + (error?.message || error));
+      closeNewApplicationModal();
     });
 }
+
+// Add a separate close function for the new application modal
+function closeNewApplicationModal() {
+  console.log('closeNewApplicationModal called');
+  const modal = document.getElementById('newApplicationModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto'; // Restore scrolling
+    resetNewApplicationModal();
+    // Clear global app number
+    window.currentAppNumber = '';
+    const appNumberEl = document.getElementById('app-number');
+    if (appNumberEl) appNumberEl.textContent = '';
+  }
+}
+
+// Update the closeModal function to be specific
+window.closeNewApplicationModal = closeNewApplicationModal;
+
+// Update the initNewApplicationScripts function to properly attach event listeners
+function initNewApplicationScripts() {
+  console.log('Initializing new application scripts...');
+  
+  calculateTotals();
+  calculateBudget();
+  safeAttachRepaymentListener();
+
+  // Attach file input preview handlers
+  ['bank-statement','pay-slip','undertaking','loan-statement'].forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.removeEventListener('change', function(){});
+      input.addEventListener('change', function() { 
+        updateFilePreview(this); 
+      });
+    }
+  });
+
+  // Add click outside to close functionality
+  const modal = document.getElementById('newApplicationModal');
+  if (modal) {
+    // Remove any existing listeners
+    modal.removeEventListener('click', handleModalClick);
+    
+    // Add new listener
+    modal.addEventListener('click', handleModalClick);
+  }
+}
+
+// Add modal click handler
+function handleModalClick(event) {
+  const modal = document.getElementById('newApplicationModal');
+  if (event.target === modal) {
+    closeNewApplicationModal();
+  }
+}
+
+// Also update the openTab function to ensure it works with the modal
+function openTab(tabName) {
+  console.log('Opening tab:', tabName);
+  
+  // Get modal-specific elements
+  const modal = document.getElementById('newApplicationModal');
+  if (!modal || modal.style.display !== 'block') return;
+  
+  const tabs = modal.querySelectorAll('.tab-content');
+  if (!tabs.length) return;
+  
+  tabs.forEach(tab => tab.classList.remove('active'));
+  const btns = modal.querySelectorAll('.tab-button');
+  btns.forEach(btn => btn.classList.remove('active'));
+
+  const targetTab = modal.querySelector('#' + tabName);
+  if (targetTab) targetTab.classList.add('active');
+
+  const btn = Array.from(modal.querySelectorAll('.tab-button')).find(b => {
+    const onclick = b.getAttribute('onclick') || '';
+    return onclick.includes(tabName);
+  });
+  if (btn) btn.classList.add('active');
+
+  // Populate review when opening review tab
+  if (tabName === 'tab5') {
+    setTimeout(() => {
+      populateReview();
+    }, 50);
+  }
+}
+
 function loadExistingApplication(appNumber) {
   console.log('Loading existing application:', appNumber);
   
@@ -1104,4 +1214,5 @@ function updateFilePreviews(documents) {
     }
   });
 }
+
 
