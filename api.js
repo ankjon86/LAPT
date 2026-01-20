@@ -5,16 +5,16 @@ class ApiService {
   }
 
   // Generic JSONP request method
-  async request(action, data = {}, options = {}) {
-    const showLoading = options.showLoading !== false;
-    const timeout = options.timeout || 30000;
-    
-    try {
-      // Show loading indicator
-      if (showLoading) {
-        const loadingEl = document.getElementById('loading');
-        if (loadingEl) loadingEl.style.display = 'flex';
-      }
+  async function request(action, data = {}, options = {}) {
+  const showLoading = options.showLoading !== false;
+  const timeout = options.timeout || 30000;
+  
+  try {
+    // Only show loading for non-background requests
+    if (showLoading) {
+      const loadingEl = document.getElementById('loading');
+      if (loadingEl) loadingEl.style.display = 'flex';
+    }
       
       return new Promise((resolve, reject) => {
         const callbackName = `api_callback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
