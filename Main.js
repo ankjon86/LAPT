@@ -280,17 +280,59 @@ function verifyUserOnLoad(loggedInName) {
 }
 
 // ----------- LOGIN FORM HANDLER -----------
-// Update the login form submit handler
-document.getElementById('login-form').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const name = document.getElementById('login-name').value.trim();
-  if (!name) {
-    alert('Name is required!');
-    return;
+document.addEventListener('DOMContentLoaded', function() {
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const name = document.getElementById('login-name').value.trim();
+      if (!name) {
+        alert('Name is required!');
+        return;
+      }
+      
+      // Call the API
+      await handleLoginFunction(name);
+    });
   }
-  await handleLogin(name);
 });
 
+// Define the login function
+async function handleLoginFunction(name) {
+  try {
+    showLoading();
+    const response = await window.apiService.login(name);
+    hideLoading();
+    
+    if (response.success) {
+      handleSuccessfulLogin(name, response.user);
+    } else {
+      handleFailedLogin(response.message);
+    }
+  } catch (error) {
+    hideLoading();
+    alert('Login error: ' + error.message);
+  }
+}
+
+function handleSuccessfulLogin(name, user) {
+  localStorage.setItem('loggedInName', name);
+  localStorage.setItem('userRole', user.role);
+  localStorage.setItem('userLevel', user.level);
+  setLoggedInUser(name, user.role);
+  hideLoginModal();
+  document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+  document.getElementById('new').classList.add('active');
+  initializeAppCount();
+  initializeAndRefreshTables();
+  initializeBrowserNotifications();
+}
+
+function handleFailedLogin(message) {
+  alert(message || 'Authentication failed');
+  document.getElementById('login-name').value = '';
+  document.getElementById('login-name').focus();
+}
 // Update badge count function
 async function updateUserNotificationBadge() {
   const userName = localStorage.getItem('loggedInName');
@@ -873,3 +915,4 @@ function initializeAppCount() {
   }
 
 }
+
