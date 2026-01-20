@@ -1,7 +1,6 @@
-// API Service for Google Apps Script Backend
+// api.js - Updated with better JSONP handling
 class ApiService {
   constructor() {
-    // Your Google Apps Script Web App URL
     this.BASE_URL = 'https://script.google.com/macros/s/AKfycbyiUV1iFQ12wcF9rwdFYjom5dueAPbw_oPGcQ1cMozHgyAUCfh4ClzHsQzeYDx3B2sC/exec';
     this.cache = new Map();
     this.requestCount = 0;
@@ -9,7 +8,6 @@ class ApiService {
   }
 
   // Generic JSONP request method
-  // options: { showLoading: true/false, useCache: true/false, timeout: 30000 }
   async request(action, data = {}, options = {}) {
     const showLoading = options.showLoading !== false;
     const useCache = options.useCache !== false;
@@ -34,7 +32,7 @@ class ApiService {
       const requestId = ++this.requestCount;
       
       return new Promise((resolve, reject) => {
-        const callbackName = `api_callback_${requestId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const callbackName = `api_callback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         // Create script element
         const script = document.createElement('script');
@@ -50,7 +48,7 @@ class ApiService {
         
         // Set up callback
         window[callbackName] = (response) => {
-          console.log('API Response:', { action, response });
+          console.log('API Response received:', { action, response });
           
           // Cleanup
           this.cleanupRequest(script, callbackName);
@@ -64,15 +62,19 @@ class ApiService {
           // Remove from active requests
           this.activeRequests.delete(requestId);
           
+          // Clear timeout
+          if (timeoutId) clearTimeout(timeoutId);
+          
           // Handle response
-          if (response && response.success) {
+          if (response && response.success !== undefined) {
             // Cache successful responses
-            if (useCache) {
+            if (useCache && response.success) {
               this.cache.set(cacheKey, response);
             }
             resolve(response);
           } else {
-            const error = new Error(response?.error || response?.message || 'API request failed');
+            // Handle malformed response
+            const error = new Error('Invalid API response format');
             error.response = response;
             reject(error);
           }
@@ -80,7 +82,7 @@ class ApiService {
         
         // Set up error handling
         script.onerror = (error) => {
-          console.error('API Script Error:', error);
+          console.error('API Script Loading Error:', error);
           this.cleanupRequest(script, callbackName);
           
           if (showLoading) {
@@ -89,12 +91,17 @@ class ApiService {
           }
           
           this.activeRequests.delete(requestId);
+          
+          // Clear timeout
+          if (timeoutId) clearTimeout(timeoutId);
+          
           reject(new Error(`Network error: Failed to load script from ${url.toString()}`));
         };
         
         // Set timeout
         const timeoutId = setTimeout(() => {
           if (this.activeRequests.has(requestId)) {
+            console.error('Request timeout for:', { action, url: url.toString() });
             this.cleanupRequest(script, callbackName);
             this.activeRequests.delete(requestId);
             reject(new Error(`Request timeout after ${timeout}ms for action: ${action}`));
@@ -106,7 +113,18 @@ class ApiService {
         
         // Load script
         script.src = url.toString();
+        script.async = true;
+        script.defer = true;
+        
+        // Add error event listener
+        script.addEventListener('error', (e) => {
+          console.error('Script element error event:', e);
+        });
+        
         document.head.appendChild(script);
+        
+        // Log script addition
+        console.log('Script element added to DOM:', script.src);
         
       });
       
@@ -117,7 +135,7 @@ class ApiService {
         if (loadingEl) loadingEl.style.display = 'none';
       }
       
-      console.error('API Request Error:', error);
+      console.error('API Request Setup Error:', error);
       throw error;
     }
   }
@@ -126,12 +144,20 @@ class ApiService {
   cleanupRequest(script, callbackName) {
     // Remove script element
     if (script && script.parentNode) {
-      script.parentNode.removeChild(script);
+      try {
+        script.parentNode.removeChild(script);
+      } catch (e) {
+        console.warn('Error removing script element:', e);
+      }
     }
     
     // Remove callback from window
     if (window[callbackName]) {
-      delete window[callbackName];
+      try {
+        delete window[callbackName];
+      } catch (e) {
+        console.warn('Error deleting callback:', e);
+      }
     }
   }
 
@@ -249,143 +275,38 @@ class ApiService {
 // Create global API instance
 window.apiService = new ApiService();
 
-// Legacy compatibility layer (for existing code that uses google.script.run)
-window.ApplicationAPI = {
-  getApplicationsByStatus: async (status) => {
-    const response = await window.apiService.getApplications(status);
-    return response.data || [];
-  },
-
-  getApplicationDetails: async (appNumber, userName) => {
-    const response = await window.apiService.getApplicationDetails(appNumber, userName);
-    if (response.success && response.data) {
-      return response;
-    } else {
-      throw new Error(response?.message || 'Failed to get application details');
-    }
-  },
-
-  saveProcessApplicationForm: async (appNumber, formData, userName, isDraft = false) => {
-    const response = await window.apiService.saveApplication(appNumber, formData, userName, isDraft);
-    return response;
-  },
-
-  getAllApplicationCounts: async () => {
-    const response = await window.apiService.getApplicationCounts();
-    return response.data || {};
-  },
-
-  getApplicationsCountForUser: async (userName) => {
-    const response = await window.apiService.getApplicationCountsForUser(userName);
-    return response.count || 0;
-  },
-
-  getNewApplicationContext: async () => {
-    const response = await window.apiService.getNewApplicationContext();
-    return response.data || {};
-  },
-
-  getNewApplications: async () => {
-    const response = await window.apiService.getApplications('NEW');
-    return response.data || [];
-  },
-
-  getPendingApplications: async () => {
-    const response = await window.apiService.getApplications('PENDING');
-    return response.data || [];
-  },
-
-  getPendingApprovalApplications: async () => {
-    const response = await window.apiService.getApplications('PENDING_APPROVAL');
-    return response.data || [];
-  },
-
-  getApprovedApplications: async () => {
-    const response = await window.apiService.getApplications('APPROVED');
-    return response.data || [];
+// Add a global error handler for unhandled JSONP errors
+window.addEventListener('error', function(e) {
+  if (e.filename && e.filename.includes('script.google.com')) {
+    console.error('Global error handler caught JSONP error:', e);
   }
-};
+});
 
-window.UserAPI = {
-  authenticateUser: async (name) => {
-    const response = await window.apiService.login(name);
-    return response;
-  },
-
-  getAllUsers: async () => {
-    const response = await window.apiService.getAllUsers();
-    return response.data || [];
-  },
-
-  addUser: async (userData) => {
-    const response = await window.apiService.addUser(userData);
-    return response;
-  },
-
-  deleteUser: async (userName) => {
-    const response = await window.apiService.deleteUser(userName);
-    return response;
-  },
-
-  getApplicationsCountForUser: async (userName) => {
-    const response = await window.apiService.getApplicationCountsForUser(userName);
-    return response.count || 0;
-  }
-};
-
-window.UtilityAPI = {
-  copyLendingTemplate: async (appNumber, folderId) => {
-    const response = await window.apiService.copyLendingTemplate(appNumber, folderId);
-    return response.url;
-  },
-
-  saveApplicationDraft: async (appObj, userName) => {
-    const response = await window.apiService.saveApplicationDraft(appObj, userName);
-    return response;
-  },
-
-  submitApplication: async (appObj, userName) => {
-    const response = await window.apiService.submitApplication(appObj, userName);
-    return response;
-  }
-};
-
-// Utility functions for easy access
-window.apiUtils = {
-  testApi: async () => {
-    try {
-      const result = await window.apiService.testConnection();
-      console.log('API Test Result:', result);
-      return result;
-    } catch (error) {
-      console.error('API Test Failed:', error);
-      return { connected: false, message: error.message };
-    }
-  },
-
-  clearCache: () => {
-    window.apiService.clearCache();
-  },
-
-  getActiveRequestCount: () => {
-    return window.apiService.activeRequests.size;
-  },
-
-  cancelAllRequests: () => {
-    window.apiService.cancelAllRequests();
-  }
-};
-
-// Initialize and test connection on page load
+// Test the API connection on load
 document.addEventListener('DOMContentLoaded', function() {
   console.log('API Service initialized with URL:', window.apiService.BASE_URL);
   
-  // Test connection on startup (optional - can be commented out)
-  // window.apiUtils.testApi().then(result => {
-  //   if (result.connected) {
-  //     console.log('✅ API connection successful');
-  //   } else {
-  //     console.warn('⚠️ API connection failed:', result.message);
-  //   }
-  // });
+  // Test the connection
+  setTimeout(() => {
+    console.log('Testing API connection...');
+    
+    // Quick test function
+    function testApiConnection() {
+      const testUrl = window.apiService.BASE_URL + '?action=test_connection&callback=testCallback&_=' + Date.now();
+      
+      window.testCallback = function(response) {
+        console.log('✅ Direct API test successful:', response);
+        delete window.testCallback;
+      };
+      
+      const script = document.createElement('script');
+      script.src = testUrl;
+      script.onerror = function(e) {
+        console.error('❌ Direct API test failed:', e);
+      };
+      document.head.appendChild(script);
+    }
+    
+    testApiConnection();
+  }, 1000);
 });
