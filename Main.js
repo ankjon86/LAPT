@@ -85,15 +85,24 @@ function debounce(func, wait) {
   };
 }
 
+// Update the login functions in Main.js
+
 // ----------- AUTH & LOGIN -----------
-function showLoginModal() {
-  if (cachedElements['login-modal']) cachedElements['login-modal'].style.display = 'flex';
-  if (cachedElements['logged-in-user']) cachedElements['logged-in-user'].textContent = '';
-  document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+function showLoginPage() {
+  document.body.classList.remove('logged-in');
+  localStorage.removeItem('loggedInName');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userLevel');
+  clearIntervals();
 }
 
-function hideLoginModal() {
-  if (cachedElements['login-modal']) cachedElements['login-modal'].style.display = 'none';
+function showDashboard() {
+  document.body.classList.add('logged-in');
+  const loggedInName = localStorage.getItem('loggedInName');
+  const userRole = localStorage.getItem('userRole');
+  if (loggedInName) {
+    setLoggedInUser(loggedInName, userRole);
+  }
 }
 
 function logout() {
@@ -102,24 +111,125 @@ function logout() {
     localStorage.removeItem('userRole');
     localStorage.removeItem('userLevel');
     clearIntervals();
-    showLoginModal();
+    showLoginPage();
   }
 }
 
-function setLoggedInUser(name, role = '') {
-  const userElement = cachedElements['logged-in-user'];
-  if (userElement) userElement.textContent = role ? `${name} (${role})` : name;
-  if (name) updateUserNotificationBadge();
+// Update the DOMContentLoaded event handler
+document.addEventListener('DOMContentLoaded', function() {
+  cacheElements();
+  
+  // Update date display
+  if (cachedElements['current-date']) {
+    cachedElements['current-date'].textContent = new Date().toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+  
+  initializeBrowserNotifications();
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+  // Check if user is logged in
+  const loggedInName = localStorage.getItem('loggedInName');
+  if (loggedInName) {
+    verifyUserOnLoad(loggedInName);
+  } else {
+    showLoginPage();
+  }
+  
+  // Setup login form
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const name = document.getElementById('login-name').value.trim();
+      if (!name) {
+        alert('Name is required!');
+        return;
+      }
+      await handleLoginFunction(name);
+    });
+  }
+});
+
+// Update verifyUserOnLoad function
+async function verifyUserOnLoad(loggedInName) {
+  try {
+    const authResult = await window.apiService.login(loggedInName);
+    if (authResult.success) {
+      localStorage.setItem('userRole', authResult.user?.role || '');
+      localStorage.setItem('userLevel', authResult.user?.level || '');
+      
+      setLoggedInUser(loggedInName, authResult.user?.role);
+      showDashboard();
+      
+      document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+      document.getElementById('new').classList.add('active');
+      initializeAppCount();
+      initializeAndRefreshTables();
+    } else {
+      showLoginPage();
+    }
+  } catch (error) {
+    console.error('Verification error:', error);
+    showLoginPage();
+  }
 }
 
+// Update handleSuccessfulLogin function
+function handleSuccessfulLogin(name, user) {
+  localStorage.setItem('loggedInName', name);
+  localStorage.setItem('userRole', user.role);
+  localStorage.setItem('userLevel', user.level);
+  
+  setLoggedInUser(name, user.role);
+  showDashboard();
+  
+  document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+  document.getElementById('new').classList.add('active');
+  initializeAppCount();
+  initializeAndRefreshTables();
+  initializeBrowserNotifications();
+}
+
+// Update handleFailedLogin function
+function handleFailedLogin(message) {
+  alert(message || 'Authentication failed');
+  const loginName = document.getElementById('login-name');
+  if (loginName) {
+    loginName.value = '';
+    loginName.focus();
+  }
+}
+
+// Update the cacheElements function
+function cacheElements() {
+  const elements = {
+    'logged-in-user': 'logged-in-user',
+    'current-date': 'current-date',
+    'loading': 'loading',
+    'success-modal': 'success-modal',
+    'success-message': 'success-message',
+    'app-number': 'app-number',
+    'user-notification-badge': 'user-notification-badge',
+    'viewApplicationModal': 'viewApplicationModal'
+  };
+  for (const [key, id] of Object.entries(elements)) {
+    cachedElements[key] = document.getElementById(id);
+  }
+}
+
+// Update restrictIfNotLoggedIn function
 function restrictIfNotLoggedIn() {
   const loggedInName = localStorage.getItem('loggedInName');
   if (!loggedInName) {
-    showLoginModal();
+    showLoginPage();
     return true;
   }
   return false;
 }
+
+
 
 // ----------- PAGE INITIALIZATION -----------
 function clearIntervals() {
@@ -831,4 +941,5 @@ window.deleteUser = deleteUser;
 window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
 window.closeViewApplicationModal = closeViewApplicationModal;
+
 
