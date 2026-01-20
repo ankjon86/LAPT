@@ -12,7 +12,6 @@ let currentViewingAppData = null;
 // Cache frequently used elements
 function cacheElements() {
   const elements = {
-    'login-modal': 'login-modal',
     'logged-in-user': 'logged-in-user',
     'current-date': 'current-date',
     'loading': 'loading',
@@ -85,8 +84,6 @@ function debounce(func, wait) {
   };
 }
 
-// Update the login functions in Main.js
-
 // ----------- AUTH & LOGIN -----------
 function showLoginPage() {
   document.body.classList.remove('logged-in');
@@ -105,6 +102,17 @@ function showDashboard() {
   }
 }
 
+// ADD THE MISSING FUNCTION
+function setLoggedInUser(name, role = '') {
+  const userElement = cachedElements['logged-in-user'];
+  if (userElement) {
+    userElement.textContent = role ? `${name} (${role})` : name;
+  }
+  if (name) {
+    updateUserNotificationBadge();
+  }
+}
+
 function logout() {
   if (confirm('Are you sure you want to logout?')) {
     localStorage.removeItem('loggedInName');
@@ -115,111 +123,6 @@ function logout() {
   }
 }
 
-// Update the DOMContentLoaded event handler
-document.addEventListener('DOMContentLoaded', function() {
-  cacheElements();
-  
-  // Update date display
-  if (cachedElements['current-date']) {
-    cachedElements['current-date'].textContent = new Date().toLocaleDateString('en-US', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
-  }
-  
-  initializeBrowserNotifications();
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-  
-  // Check if user is logged in
-  const loggedInName = localStorage.getItem('loggedInName');
-  if (loggedInName) {
-    verifyUserOnLoad(loggedInName);
-  } else {
-    showLoginPage();
-  }
-  
-  // Setup login form
-  const loginForm = document.getElementById('login-form');
-  if (loginForm) {
-    loginForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const name = document.getElementById('login-name').value.trim();
-      if (!name) {
-        alert('Name is required!');
-        return;
-      }
-      await handleLoginFunction(name);
-    });
-  }
-});
-
-// Update verifyUserOnLoad function
-async function verifyUserOnLoad(loggedInName) {
-  try {
-    const authResult = await window.apiService.login(loggedInName);
-    if (authResult.success) {
-      localStorage.setItem('userRole', authResult.user?.role || '');
-      localStorage.setItem('userLevel', authResult.user?.level || '');
-      
-      setLoggedInUser(loggedInName, authResult.user?.role);
-      showDashboard();
-      
-      document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
-      document.getElementById('new').classList.add('active');
-      initializeAppCount();
-      initializeAndRefreshTables();
-    } else {
-      showLoginPage();
-    }
-  } catch (error) {
-    console.error('Verification error:', error);
-    showLoginPage();
-  }
-}
-
-// Update handleSuccessfulLogin function
-function handleSuccessfulLogin(name, user) {
-  localStorage.setItem('loggedInName', name);
-  localStorage.setItem('userRole', user.role);
-  localStorage.setItem('userLevel', user.level);
-  
-  setLoggedInUser(name, user.role);
-  showDashboard();
-  
-  document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
-  document.getElementById('new').classList.add('active');
-  initializeAppCount();
-  initializeAndRefreshTables();
-  initializeBrowserNotifications();
-}
-
-// Update handleFailedLogin function
-function handleFailedLogin(message) {
-  alert(message || 'Authentication failed');
-  const loginName = document.getElementById('login-name');
-  if (loginName) {
-    loginName.value = '';
-    loginName.focus();
-  }
-}
-
-// Update the cacheElements function
-function cacheElements() {
-  const elements = {
-    'logged-in-user': 'logged-in-user',
-    'current-date': 'current-date',
-    'loading': 'loading',
-    'success-modal': 'success-modal',
-    'success-message': 'success-message',
-    'app-number': 'app-number',
-    'user-notification-badge': 'user-notification-badge',
-    'viewApplicationModal': 'viewApplicationModal'
-  };
-  for (const [key, id] of Object.entries(elements)) {
-    cachedElements[key] = document.getElementById(id);
-  }
-}
-
-// Update restrictIfNotLoggedIn function
 function restrictIfNotLoggedIn() {
   const loggedInName = localStorage.getItem('loggedInName');
   if (!loggedInName) {
@@ -228,8 +131,6 @@ function restrictIfNotLoggedIn() {
   }
   return false;
 }
-
-
 
 // ----------- PAGE INITIALIZATION -----------
 function clearIntervals() {
@@ -256,10 +157,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('visibilitychange', handleVisibilityChange);
   
   const loggedInName = localStorage.getItem('loggedInName');
-  if (!loggedInName) { 
-    showLoginModal(); 
-  } else { 
-    verifyUserOnLoad(loggedInName); 
+  if (loggedInName) {
+    verifyUserOnLoad(loggedInName);
+  } else {
+    showLoginPage();
   }
   
   // Setup login form
@@ -281,24 +182,22 @@ async function verifyUserOnLoad(loggedInName) {
   try {
     const authResult = await window.apiService.login(loggedInName);
     if (authResult.success) {
-      const userRole = localStorage.getItem('userRole');
-      setLoggedInUser(loggedInName, userRole);
-      hideLoginModal();
+      localStorage.setItem('userRole', authResult.user?.role || '');
+      localStorage.setItem('userLevel', authResult.user?.level || '');
+      
+      setLoggedInUser(loggedInName, authResult.user?.role);
+      showDashboard();
+      
       document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
       document.getElementById('new').classList.add('active');
       initializeAppCount();
       initializeAndRefreshTables();
     } else {
-      localStorage.removeItem('loggedInName');
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('userLevel');
-      showLoginModal();
+      showLoginPage();
     }
   } catch (error) {
-    localStorage.removeItem('loggedInName');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userLevel');
-    showLoginModal();
+    console.error('Verification error:', error);
+    showLoginPage();
   }
 }
 
@@ -306,7 +205,11 @@ async function verifyUserOnLoad(loggedInName) {
 async function handleLoginFunction(name) {
   try {
     showLoading();
+    console.log('Attempting login for:', name);
+    
     const response = await window.apiService.login(name);
+    console.log('Login response:', response);
+    
     hideLoading();
     
     if (response.success) {
@@ -316,6 +219,7 @@ async function handleLoginFunction(name) {
     }
   } catch (error) {
     hideLoading();
+    console.error('Login error details:', error);
     alert('Login error: ' + error.message);
   }
 }
@@ -324,8 +228,10 @@ function handleSuccessfulLogin(name, user) {
   localStorage.setItem('loggedInName', name);
   localStorage.setItem('userRole', user.role);
   localStorage.setItem('userLevel', user.level);
+  
   setLoggedInUser(name, user.role);
-  hideLoginModal();
+  showDashboard();
+  
   document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
   document.getElementById('new').classList.add('active');
   initializeAppCount();
@@ -908,31 +814,6 @@ async function debugApiConnection() {
   }
 }
 
-// Call this from browser console: debugApiConnection()
-
-// Also update the login error handling in Main.js
-async function handleLoginFunction(name) {
-  try {
-    showLoading();
-    console.log('Attempting login for:', name);
-    
-    const response = await window.apiService.login(name);
-    console.log('Login response:', response);
-    
-    hideLoading();
-    
-    if (response.success) {
-      handleSuccessfulLogin(name, response.user);
-    } else {
-      handleFailedLogin(response.message);
-    }
-  } catch (error) {
-    hideLoading();
-    console.error('Login error details:', error);
-    alert('Login error: ' + error.message);
-  }
-}
-
 // Make functions globally available
 window.showSection = showSection;
 window.refreshApplications = refreshApplications;
@@ -941,5 +822,4 @@ window.deleteUser = deleteUser;
 window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
 window.closeViewApplicationModal = closeViewApplicationModal;
-
-
+window.setLoggedInUser = setLoggedInUser; // Add this to make it globally available
