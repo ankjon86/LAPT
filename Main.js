@@ -771,6 +771,58 @@ async function initializeAppCount() {
   }
 }
 
+// Add to Main.js - Debug function
+async function debugApiConnection() {
+  console.log('=== DEBUG API CONNECTION ===');
+  
+  // Test 1: Direct JSONP test
+  const testUrl = 'https://script.google.com/macros/s/AKfycbyiUV1iFQ12wcF9rwdFYjom5dueAPbw_oPGcQ1cMozHgyAUCfh4ClzHsQzeYDx3B2sC/exec?action=test_connection&callback=debugCallback&_=' + Date.now();
+  
+  window.debugCallback = function(response) {
+    console.log('Direct JSONP test response:', response);
+    delete window.debugCallback;
+  };
+  
+  const script = document.createElement('script');
+  script.src = testUrl;
+  script.onload = () => console.log('Script loaded successfully');
+  script.onerror = (e) => console.error('Script error:', e);
+  document.head.appendChild(script);
+  
+  // Test 2: Using apiService
+  try {
+    const result = await window.apiService.testConnection();
+    console.log('apiService test result:', result);
+  } catch (error) {
+    console.error('apiService test error:', error);
+  }
+}
+
+// Call this from browser console: debugApiConnection()
+
+// Also update the login error handling in Main.js
+async function handleLoginFunction(name) {
+  try {
+    showLoading();
+    console.log('Attempting login for:', name);
+    
+    const response = await window.apiService.login(name);
+    console.log('Login response:', response);
+    
+    hideLoading();
+    
+    if (response.success) {
+      handleSuccessfulLogin(name, response.user);
+    } else {
+      handleFailedLogin(response.message);
+    }
+  } catch (error) {
+    hideLoading();
+    console.error('Login error details:', error);
+    alert('Login error: ' + error.message);
+  }
+}
+
 // Make functions globally available
 window.showSection = showSection;
 window.refreshApplications = refreshApplications;
@@ -779,3 +831,4 @@ window.deleteUser = deleteUser;
 window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
 window.closeViewApplicationModal = closeViewApplicationModal;
+
