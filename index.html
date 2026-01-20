@@ -65,7 +65,7 @@
     </div>
     
     <div class="main-content">
-      <!-- Applications Tables -->
+            <!-- Applications Tables -->
       <div id="new" class="content-section">
         <div class="section-header">
           <h2><i class="fas fa-file-alt"></i> New Applications</h2>
@@ -92,26 +92,86 @@
           </table>
         </div>
       </div>
-      
-      <!-- Pending Applications -->
       <div id="pending" class="content-section">
-        <!-- Similar structure as above -->
+        <div class="section-header">
+          <h2><i class="fas fa-clock"></i> Pending Applications</h2>
+          <div class="section-actions">
+            <button class="btn-outline" onclick="refreshApplications()">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="applications-table">
+            <thead>
+              <tr>
+                <th>Application Number</th>
+                <th>Applicant Name</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Action By</th>
+              </tr>
+            </thead>
+            <tbody id="pending-list">
+              <tr><td colspan="5" class="loading">Loading applications...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      
-      <!-- Pending Approvals -->
       <div id="pending-approvals" class="content-section">
-        <!-- Similar structure -->
+        <div class="section-header">
+          <h2><i class="fas fa-hourglass-half"></i> Pending Approvals</h2>
+          <div class="section-actions">
+            <button class="btn-outline" onclick="refreshApplications()">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="applications-table">
+            <thead>
+              <tr>
+                <th>Application Number</th>
+                <th>Applicant Name</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Action By</th>
+              </tr>
+            </thead>
+            <tbody id="pending-approvals-list">
+              <tr><td colspan="5" class="loading">Loading applications...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      
-      <!-- Approved Applications -->
       <div id="approved" class="content-section">
-        <!-- Similar structure -->
+        <div class="section-header">
+          <h2><i class="fas fa-check-circle"></i> Approved Applications</h2>
+          <div class="section-actions">
+            <button class="btn-outline" onclick="refreshApplications()">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="applications-table">
+            <thead>
+              <tr>
+                <th>Application Number</th>
+                <th>Applicant Name</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Action By</th>
+              </tr>
+            </thead>
+            <tbody id="approved-list">
+              <tr><td colspan="5" class="loading">Loading applications...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       
-      <!-- Application Details (Legacy) -->
-      <div id="application-details" class="content-section">
-        <!-- Legacy content -->
-      </div>
+
       
       <!-- User Management: Add User -->
       <div id="add-user" class="content-section">
