@@ -317,15 +317,22 @@ async function downloadLendingTemplate() {
   }
 }
 
-function showLoading() {
-  if (cachedElements['loading']) {
-    cachedElements['loading'].style.display = 'flex';
+// Update the showLoading and hideLoading functions
+function showLoading(message = 'Processing...') {
+  const loadingEl = cachedElements['loading'];
+  if (loadingEl) {
+    const messageEl = loadingEl.querySelector('p');
+    if (messageEl) {
+      messageEl.textContent = message;
+    }
+    loadingEl.style.display = 'flex';
   }
 }
 
 function hideLoading() {
-  if (cachedElements['loading']) {
-    cachedElements['loading'].style.display = 'none';
+  const loadingEl = cachedElements['loading'];
+  if (loadingEl) {
+    loadingEl.style.display = 'none';
   }
 }
 
@@ -495,7 +502,10 @@ async function loadApplications(sectionId, options = {}) {
   const tbody = document.getElementById(`${sectionId}-list`);
   if (!tbody) return;
   
-  if (options.showLoading !== false) {
+  // Only show loading indicator if explicitly requested AND it's not an auto-refresh
+  const isAutoRefresh = options.isAutoRefresh || false;
+  
+  if (options.showLoading !== false && !isAutoRefresh) {
     tbody.innerHTML = `<tr><td colspan="5" class="loading">Loading applications...</td></tr>`;
   } else {
     tbody.setAttribute('aria-busy', 'true');
@@ -504,7 +514,7 @@ async function loadApplications(sectionId, options = {}) {
   
   try {
     const response = await window.apiService.getApplications(status, {
-      showLoading: false // We handle loading ourselves
+      showLoading: false // API handles its own loading
     });
     
     tbody.removeAttribute('aria-busy');
@@ -521,7 +531,6 @@ async function loadApplications(sectionId, options = {}) {
     tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${error.message}</td></tr>`;
   }
 }
-
 // ----------- UPDATE BADGE COUNTS -----------
 async function updateBadgeCounts() {
   try {
@@ -559,18 +568,22 @@ async function updateUserNotificationBadge() {
   }
 }
 
-const debouncedRefreshApplications = debounce(async function() {
+const debouncedRefreshApplications = debounce(async function(isAutoRefresh = false) {
   const activeSection = document.querySelector('.content-section.active')?.id;
   if (activeSection && activeSection !== 'new-application') {
-    await loadApplications(activeSection, { showLoading: true });
+    await loadApplications(activeSection, { 
+      showLoading: !isAutoRefresh,
+      isAutoRefresh: isAutoRefresh 
+    });
     await updateBadgeCounts();
     await updateUserNotificationBadge();
   }
 }, 300);
 
 function refreshApplications() { 
-  debouncedRefreshApplications(); 
+  debouncedRefreshApplications(false); // Manual refresh - can show loading
 }
+
 
 async function initializeAndRefreshTables() {
   await loadApplications('new', { showLoading: true });
@@ -581,13 +594,16 @@ async function initializeAndRefreshTables() {
   refreshInterval = setInterval(async () => {
     const activeSection = document.querySelector('.content-section.active')?.id;
     if (activeSection && activeSection !== 'new-application') {
-      await loadApplications(activeSection, { showLoading: false });
+      // Auto-refresh - don't show loading overlay
+      await loadApplications(activeSection, { 
+        showLoading: false,
+        isAutoRefresh: true 
+      });
       await updateBadgeCounts();
       await updateUserNotificationBadge();
     }
-  }, 60000);
+  }, 60000); // Auto-refresh every 60 seconds
 }
-
 // ----------- USER MANAGEMENT -----------
 async function getAllUsersHandler() {
   try {
@@ -823,3 +839,4 @@ window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
 window.closeViewApplicationModal = closeViewApplicationModal;
 window.setLoggedInUser = setLoggedInUser; // Add this to make it globally available
+
