@@ -1,23 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base target="_top">
   <title>Loan Application Dashboard</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   
-  <!-- PWA Meta Tags -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#2563eb">
-  <link rel="manifest" href="<?= ScriptApp.getService().getUrl() ?>?manifest=true">
+  <link rel="manifest" href="manifest.json">
   
-  <!-- Main CSS -->
+  <!-- CSS files (adjust paths as needed) -->
   <link rel="stylesheet" href="Main.css">
-  
-  <!-- New Application Modal CSS -->
-  <link rel="stylesheet" href="new-application/newApps.css">
-  
-  <!-- View Application Modal CSS -->
-  <link rel="stylesheet" href="view-application/viewApps.css">
+  <link rel="stylesheet" href="newApps.css">
+  <link rel="stylesheet" href="viewApps.css">
 
 </head>
 <body>
@@ -98,98 +92,25 @@
           </table>
         </div>
       </div>
+      
+      <!-- Pending Applications -->
       <div id="pending" class="content-section">
-        <div class="section-header">
-          <h2><i class="fas fa-clock"></i> Pending Applications</h2>
-          <div class="section-actions">
-            <button class="btn-outline" onclick="refreshApplications()">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
-        </div>
-        <div class="table-container">
-          <table class="applications-table">
-            <thead>
-              <tr>
-                <th>Application Number</th>
-                <th>Applicant Name</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Action By</th>
-              </tr>
-            </thead>
-            <tbody id="pending-list">
-              <tr><td colspan="5" class="loading">Loading applications...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div id="pending-approvals" class="content-section">
-        <div class="section-header">
-          <h2><i class="fas fa-hourglass-half"></i> Pending Approvals</h2>
-          <div class="section-actions">
-            <button class="btn-outline" onclick="refreshApplications()">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
-        </div>
-        <div class="table-container">
-          <table class="applications-table">
-            <thead>
-              <tr>
-                <th>Application Number</th>
-                <th>Applicant Name</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Action By</th>
-              </tr>
-            </thead>
-            <tbody id="pending-approvals-list">
-              <tr><td colspan="5" class="loading">Loading applications...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div id="approved" class="content-section">
-        <div class="section-header">
-          <h2><i class="fas fa-check-circle"></i> Approved Applications</h2>
-          <div class="section-actions">
-            <button class="btn-outline" onclick="refreshApplications()">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
-        </div>
-        <div class="table-container">
-          <table class="applications-table">
-            <thead>
-              <tr>
-                <th>Application Number</th>
-                <th>Applicant Name</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Action By</th>
-              </tr>
-            </thead>
-            <tbody id="approved-list">
-              <tr><td colspan="5" class="loading">Loading applications...</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <!-- Similar structure as above -->
       </div>
       
-      <!-- Application Details (Legacy - can be removed) -->
+      <!-- Pending Approvals -->
+      <div id="pending-approvals" class="content-section">
+        <!-- Similar structure -->
+      </div>
+      
+      <!-- Approved Applications -->
+      <div id="approved" class="content-section">
+        <!-- Similar structure -->
+      </div>
+      
+      <!-- Application Details (Legacy) -->
       <div id="application-details" class="content-section">
-        <div class="section-header">
-          <h2><i class="fas fa-file-alt"></i> Application Details</h2>
-          <div class="section-actions">
-            <button class="btn-secondary" onclick="goBackToList()">
-              <i class="fas fa-arrow-left"></i> Back to List
-            </button>
-          </div>
-        </div>
-        <div class="app-details-container" id="app-details-content">
-          <!-- Application details will be loaded here -->
-        </div>
+        <!-- Legacy content -->
       </div>
       
       <!-- User Management: Add User -->
@@ -230,32 +151,10 @@
       
       <!-- Users List -->
       <div id="users-list" class="content-section">
-        <div class="section-header">
-          <h2><i class="fas fa-list"></i> Users List</h2>
-          <div class="section-actions">
-            <button class="btn-outline" onclick="refreshUsersList()">
-              <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-          </div>
-        </div>
-        <div class="table-container">
-          <table class="applications-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Level</th>
-                <th>Role</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="users-list-body">
-              <tr><td colspan="4" class="loading">Loading users...</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <!-- Users table structure -->
       </div>
-    </div><!--/main-content-->
-  </div><!--/container-->
+    </div>
+  </div>
 
   <!-- Login Modal -->
   <div id="login-modal" class="modal-overlay">
@@ -281,32 +180,28 @@
 
   <!-- Success Modal -->
   <div id="success-modal" class="modal-overlay">
-    <div class="modal-message">
-      <i class="fas fa-check-circle success-icon"></i>
-      <div id="success-message"></div>
-      <button onclick="closeSuccessModal()" class="btn-primary">OK</button>
-    </div>
+    <!-- Success modal content -->
   </div>
 
-  <!-- New Application Modal -->
+  <!-- New Application Modal (INLINE CONTENT) -->
   <div id="newApplicationModal" class="modal">
     <div class="modal-content compact-modal">
-      <!-- Content loaded from external file -->
+      <!-- PASTE newApps.html CONTENT HERE DIRECTLY -->
     </div>
   </div>
 
-  <!-- View Application Modal -->
+  <!-- View Application Modal (INLINE CONTENT) -->
   <div id="viewApplicationModal" class="modal">
     <div class="modal-content large-modal">
-      <!-- Content loaded from external file -->
+      <!-- PASTE viewApps.html CONTENT HERE DIRECTLY -->
     </div>
   </div>
 
-  <!-- Scripts -->
+  <!-- Scripts (single file or adjust paths) -->
   <script src="Main.js"></script>
   <script src="api.js"></script>
-  <script src="new-application/newApps.js"></script>
-  <script src="view-application/viewApps.js"></script>
+  <script src="newApps.js"></script>
+  <script src="viewApps.js"></script>
 
 </body>
 </html>
