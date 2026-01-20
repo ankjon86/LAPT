@@ -1,7 +1,7 @@
 // api.js - Simplified to work with your new request handler
 class ApiService {
   constructor() {
-    this.BASE_URL = 'https://script.google.com/macros/s/AKfycbyiUV1iFQ12wcF9rwdFYjom5dueAPbw_oPGcQ1cMozHgyAUCfh4ClzHsQzeYDx3B2sC/exec';
+    this.BASE_URL = 'https://script.google.com/macros/s/AKfycbxPg6_2_tTutca2EM6ZInFvH18YXKkx56KcqY8DfYgrBBjlKge2iomqt42huj85aA3agQ/exec';
   }
 
   // Generic JSONP request method
