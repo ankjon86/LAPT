@@ -1,7 +1,7 @@
 // api.js - Updated with better JSONP handling
 class ApiService {
   constructor() {
-    this.BASE_URL = 'https://script.google.com/macros/s/AKfycbyiUV1iFQ12wcF9rwdFYjom5dueAPbw_oPGcQ1cMozHgyAUCfh4ClzHsQzeYDx3B2sC/exec';
+    this.BASE_URL = 'https://script.google.com/macros/s/AKfycbxPg6_2_tTutca2EM6ZInFvH18YXKkx56KcqY8DfYgrBBjlKge2iomqt42huj85aA3agQ/exec';
     this.cache = new Map();
     this.requestCount = 0;
     this.activeRequests = new Map();
