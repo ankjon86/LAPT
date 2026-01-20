@@ -54,6 +54,7 @@ function resetNewApplicationModal() {
   calculateBudget();
 }
 
+// Replace the showNewApplicationModal function starting at line 41:
 function showNewApplicationModal(existingAppNumber = null) {
   if (existingAppNumber) {
     // Load existing draft application
@@ -62,36 +63,44 @@ function showNewApplicationModal(existingAppNumber = null) {
   }
   
   // Ask server for new app context (app number + folder) - FOR NEW APPLICATIONS
-  google.script.run
-    .withSuccessHandler(function(ctx) {
-      window.currentAppNumber = ctx.appNumber;
-      window.currentAppFolderId = ctx.folderId;
+  // Use apiService instead of google.script.run
+  showLoading();
+  
+  window.apiService.getNewApplicationContext({ showLoading: false })
+    .then(function(response) {
+      hideLoading();
+      
+      if (response && response.success && response.data) {
+        const ctx = response.data;
+        window.currentAppNumber = ctx.appNumber;
+        window.currentAppFolderId = ctx.folderId;
 
-      // reflect in modal header/app-number
-      const appNumberEl = document.getElementById('app-number');
-      if (appNumberEl) appNumberEl.textContent = window.currentAppNumber || '';
+        // reflect in modal header/app-number
+        const appNumberEl = document.getElementById('app-number');
+        if (appNumberEl) appNumberEl.textContent = window.currentAppNumber || '';
 
-      const modal = document.getElementById('newApplicationModal');
-      if (modal) {
-        modal.style.display = 'block';
-        resetNewApplicationModal();
-        // open default or requested edit tab
-        const requestedTab = sessionStorage.getItem('editTab');
-        if (requestedTab) {
-          openTab(requestedTab);
-          sessionStorage.removeItem('editTab');
-        } else {
-          openTab('tab1');
+        const modal = document.getElementById('newApplicationModal');
+        if (modal) {
+          modal.style.display = 'block';
+          resetNewApplicationModal();
+          // open default or requested edit tab
+          const requestedTab = sessionStorage.getItem('editTab');
+          if (requestedTab) {
+            openTab(requestedTab);
+            sessionStorage.removeItem('editTab');
+          } else {
+            openTab('tab1');
+          }
         }
+      } else {
+        alert('Error starting new application: ' + (response?.message || 'Failed to get application context'));
       }
     })
-    .withFailureHandler(function(error) {
+    .catch(function(error) {
+      hideLoading();
       alert('Error starting new application: ' + (error?.message || error));
-    })
-    .getNewApplicationContext();
+    });
 }
-
-// In loadExistingApplication, after showing modal and calling openTab('tab1'), prefer any requested editTab
 function loadExistingApplication(appNumber) {
   console.log('Loading existing application:', appNumber);
   
@@ -116,8 +125,9 @@ function loadExistingApplication(appNumber) {
   
   const userName = localStorage.getItem('loggedInName') || '';
   
-  google.script.run
-    .withSuccessHandler(function(response) {
+  // Use apiService instead of google.script.run
+  window.apiService.getApplicationDetails(appNumber, userName, { showLoading: false })
+    .then(function(response) {
       // Hide loading
       if (typeof hideLoading === 'function') hideLoading();
       else {
@@ -162,7 +172,7 @@ function loadExistingApplication(appNumber) {
         alert('Failed to load application: ' + (response?.message || 'Application not found'));
       }
     })
-    .withFailureHandler(function(error) {
+    .catch(function(error) {
       // Hide loading
       if (typeof hideLoading === 'function') hideLoading();
       else {
@@ -171,8 +181,7 @@ function loadExistingApplication(appNumber) {
       }
       
       alert('Error loading application: ' + (error?.message || error));
-    })
-    .getApplicationDetails(appNumber, userName); // Changed from getApplicationDetailsForEdit
+    });
 }
 
 function closeModal() {
@@ -650,7 +659,6 @@ creditOfficerComment: document.getElementById('creditOfficerComment')?.value || 
   return formData;
 }
 
-// ---- Save Application (draft or full) ----
 function saveDraftFromModal() {
   const loggedInUser = localStorage.getItem('loggedInName') || '';
   if (!loggedInUser) {
@@ -696,9 +704,9 @@ function saveDraftFromModal() {
     document.body.appendChild(overlay);
   }
   
-  // Call saveProcessApplicationForm with isDraft = true
-  google.script.run
-    .withSuccessHandler(function(res) {
+  // Use apiService instead of google.script.run
+  window.apiService.saveApplication(appNumber, formData, loggedInUser, true, { showLoading: false })
+    .then(function(res) {
       if (typeof hideLoading === 'function') hideLoading();
       else {
         const o = document.getElementById('tempSavingOverlay');
@@ -714,16 +722,16 @@ function saveDraftFromModal() {
         alert('Failed to save draft: ' + (res?.message || 'unknown error'));
       }
     })
-    .withFailureHandler(function(err) {
+    .catch(function(err) {
       if (typeof hideLoading === 'function') hideLoading();
       else {
         const o = document.getElementById('tempSavingOverlay');
         if (o) o.remove();
       }
       alert('Error saving draft: ' + (err?.message || err));
-    })
-    .saveProcessApplicationForm(appNumber, formData, loggedInUser, true); // true = isDraft
+    });
 }
+
 
 function saveNewApplication() {
   const loggedInUser = localStorage.getItem('loggedInName');
@@ -805,7 +813,6 @@ function saveNewApplication() {
     .saveProcessApplicationForm(appNumber, formData, loggedInUser, false); // false = not a draft
 }
 
-// ---- Submit (final) ----
 function submitNewApplication() {
   const loggedInUser = localStorage.getItem('loggedInName');
   if (!loggedInUser) {
@@ -868,9 +875,9 @@ function submitNewApplication() {
     document.body.appendChild(overlay);
   }
 
-  // Call saveProcessApplicationForm with isDraft = false (full submission)
-  google.script.run
-    .withSuccessHandler(function(response) {
+  // Use apiService instead of google.script.run
+  window.apiService.saveApplication(appNumber, formData, loggedInUser, false, { showLoading: false })
+    .then(function(response) {
       if (typeof hideLoading === 'function') hideLoading();
       else {
         const o = document.getElementById('tempSavingOverlay');
@@ -892,15 +899,14 @@ function submitNewApplication() {
         alert('Error submitting application: ' + (response?.message || 'unknown error'));
       }
     })
-    .withFailureHandler(function(error) {
+    .catch(function(error) {
       if (typeof hideLoading === 'function') hideLoading();
       else {
         const o = document.getElementById('tempSavingOverlay');
         if (o) o.remove();
       }
       alert('Error submitting application: ' + (error?.message || error));
-    })
-    .saveProcessApplicationForm(appNumber, formData, loggedInUser, false); // false = not a draft (full submission)
+    });
 }
 
 // ---- Initial Setup ----
@@ -1098,3 +1104,4 @@ function updateFilePreviews(documents) {
     }
   });
 }
+
