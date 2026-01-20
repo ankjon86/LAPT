@@ -54,11 +54,10 @@ function resetNewApplicationModal() {
   calculateBudget();
 }
 
-// Replace the showNewApplicationModal function
 function showNewApplicationModal(existingAppNumber = null) {
   console.log('showNewApplicationModal called with:', existingAppNumber);
   
-  // First, make sure the modal element exists and show it
+  // First, make sure the modal element exists
   const modal = document.getElementById('newApplicationModal');
   if (!modal) {
     console.error('Modal element not found!');
@@ -66,27 +65,16 @@ function showNewApplicationModal(existingAppNumber = null) {
     return;
   }
   
-  // Show the modal immediately
-  modal.style.display = 'block';
-  document.body.style.overflow = 'hidden'; // Prevent background scrolling
-  
   if (existingAppNumber) {
     // Load existing draft application
     loadExistingApplication(existingAppNumber);
     return;
   }
   
-  // For new applications, get context
-  const loggedInUser = localStorage.getItem('loggedInName');
-  if (!loggedInUser) {
-    alert('Please login first!');
-    closeNewApplicationModal();
-    return;
-  }
+  // Ask server for new app context (app number + folder) - FOR NEW APPLICATIONS
+  showLoading('Starting new application...');
   
-  showLoading();
-  
-  window.apiService.getNewApplicationContext({ showLoading: false })
+  window.apiService.getNewApplicationContext()
     .then(function(response) {
       hideLoading();
       
@@ -95,34 +83,36 @@ function showNewApplicationModal(existingAppNumber = null) {
         window.currentAppNumber = ctx.appNumber;
         window.currentAppFolderId = ctx.folderId;
 
-        // Update modal header
+        // reflect in modal header/app-number
         const appNumberEl = document.getElementById('app-number');
         if (appNumberEl) {
           appNumberEl.textContent = window.currentAppNumber || '';
         }
 
-        // Reset form and open first tab
-        resetNewApplicationModal();
-        openTab('tab1');
+        // Show the modal
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
         
-        // Initialize any required scripts
-        setTimeout(() => {
-          calculateTotals();
-          calculateBudget();
-          safeAttachRepaymentListener();
-        }, 100);
+        // Reset form
+        resetNewApplicationModal();
+        
+        // open default or requested edit tab
+        const requestedTab = sessionStorage.getItem('editTab');
+        if (requestedTab) {
+          openTab(requestedTab);
+          sessionStorage.removeItem('editTab');
+        } else {
+          openTab('tab1');
+        }
       } else {
-        alert('Error starting new application: ' + (response?.message || 'Failed to get application context'));
-        closeNewApplicationModal();
+        throw new Error(response?.message || 'Failed to get application context');
       }
     })
     .catch(function(error) {
       hideLoading();
       alert('Error starting new application: ' + (error?.message || error));
-      closeNewApplicationModal();
     });
 }
-
 // Add a separate close function for the new application modal
 function closeNewApplicationModal() {
   console.log('closeNewApplicationModal called');
@@ -1214,5 +1204,6 @@ function updateFilePreviews(documents) {
     }
   });
 }
+
 
 
