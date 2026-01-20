@@ -12,6 +12,7 @@
   transition: opacity 0.25s ease;
 }
 
+
 .modal.active {
   display: block;
   opacity: 1;
@@ -882,3 +883,4 @@
   border-radius: 4px;
   border: 1px dashed #e5e7eb;
 }
+
