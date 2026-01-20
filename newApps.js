@@ -72,7 +72,7 @@ function showNewApplicationModal(existingAppNumber = null) {
   }
   
   // Ask server for new app context (app number + folder) - FOR NEW APPLICATIONS
-  showLoading('Starting new application...');
+  showLoading();
   
   window.apiService.getNewApplicationContext()
     .then(function(response) {
@@ -91,17 +91,19 @@ function showNewApplicationModal(existingAppNumber = null) {
 
         // Show the modal
         modal.style.display = 'block';
-        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        document.body.style.overflow = 'hidden';
         
         // Reset form
-        resetNewApplicationModal();
+        if (typeof resetNewApplicationModal === 'function') {
+          resetNewApplicationModal();
+        }
         
         // open default or requested edit tab
         const requestedTab = sessionStorage.getItem('editTab');
-        if (requestedTab) {
+        if (requestedTab && typeof openTab === 'function') {
           openTab(requestedTab);
           sessionStorage.removeItem('editTab');
-        } else {
+        } else if (typeof openTab === 'function') {
           openTab('tab1');
         }
       } else {
@@ -110,9 +112,12 @@ function showNewApplicationModal(existingAppNumber = null) {
     })
     .catch(function(error) {
       hideLoading();
+      console.error('Error in showNewApplicationModal:', error);
       alert('Error starting new application: ' + (error?.message || error));
     });
 }
+
+
 // Add a separate close function for the new application modal
 function closeNewApplicationModal() {
   console.log('closeNewApplicationModal called');
@@ -1204,6 +1209,7 @@ function updateFilePreviews(documents) {
     }
   });
 }
+
 
 
 
