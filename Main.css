@@ -1096,4 +1096,117 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+
 }
+
+
+    /* Login Page Styles */
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+    }
+    
+    .login-container {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+      padding: 40px;
+      text-align: center;
+    }
+    
+    .login-logo {
+      font-size: 2.5rem;
+      color: #2563eb;
+      margin-bottom: 20px;
+    }
+    
+    .login-title {
+      font-size: 1.5rem;
+      color: #333;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    
+    .login-subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 0.9rem;
+    }
+    
+    .login-form {
+      text-align: left;
+    }
+    
+    .login-form .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .login-form .form-label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 500;
+    }
+    
+    .login-form .form-input {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+      box-sizing: border-box;
+    }
+    
+    .login-form .form-input:focus {
+      outline: none;
+      border-color: #2563eb;
+    }
+    
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-top: 10px;
+    }
+    
+    .login-btn:hover {
+      background: #1d4ed8;
+    }
+    
+    .login-btn:active {
+      transform: translateY(1px);
+    }
+    
+    .login-footer {
+      margin-top: 30px;
+      color: #666;
+      font-size: 0.85rem;
+    }
+    
+    /* Hide dashboard content when not logged in */
+    .dashboard-content {
+      display: none;
+    }
+    
+    /* Show dashboard when logged in */
+    .logged-in .dashboard-content {
+      display: block;
+    }
+    
+    .logged-in .login-page {
+      display: none;
+    }
