@@ -518,6 +518,84 @@ if (cachedElements['viewApplicationModal']) {
 }
 
 // ----------- LOAD APPLICATIONS -----------
+// Function to load modal content from external file
+async function loadModalContent() {
+  const modalContent = document.getElementById('newApplicationModalContent');
+  
+  if (!modalContent) {
+    console.error('Modal content container not found');
+    return false;
+  }
+  
+  // Don't reload if already loaded
+  if (modalContent.innerHTML.trim() !== '') {
+    console.log('Modal content already loaded');
+    return true;
+  }
+  
+  showLoading('Loading application form...');
+  
+  try {
+    // Fetch the modal HTML
+    const response = await fetch('newApps.html');
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const html = await response.text();
+    
+    // Extract the content between the file markers
+    const startMarker = '[file content begin]';
+    const endMarker = '[file content end]';
+    const startIndex = html.indexOf(startMarker);
+    const endIndex = html.indexOf(endMarker);
+    
+    if (startIndex === -1 || endIndex === -1) {
+      // If markers not found, use the entire content
+      modalContent.innerHTML = html;
+    } else {
+      // Extract content between markers
+      const content = html.substring(startIndex + startMarker.length, endIndex);
+      modalContent.innerHTML = content.trim();
+    }
+    
+    console.log('Modal content loaded successfully');
+    
+    // Initialize the modal scripts
+    setTimeout(() => {
+      if (typeof initNewApplicationScripts === 'function') {
+        initNewApplicationScripts();
+      }
+      
+      // Also trigger any other initialization
+      if (typeof calculateTotals === 'function') {
+        calculateTotals();
+      }
+      if (typeof calculateBudget === 'function') {
+        calculateBudget();
+      }
+    }, 100);
+    
+    hideLoading();
+    return true;
+    
+  } catch (error) {
+    console.error('Error loading modal content:', error);
+    modalContent.innerHTML = `
+      <div style="padding: 40px; text-align: center;">
+        <h3>Error Loading Form</h3>
+        <p>Failed to load application form. Please refresh the page.</p>
+        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer;">
+          Refresh Page
+        </button>
+      </div>
+    `;
+    hideLoading();
+    return false;
+  }
+}
+
 async function loadApplications(sectionId, options = {}) {
   const sectionMap = {
     'new': 'NEW',
@@ -869,5 +947,6 @@ window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
 window.closeViewApplicationModal = closeViewApplicationModal;
 window.setLoggedInUser = setLoggedInUser; // Add this to make it globally available
+
 
 
