@@ -77,10 +77,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-function showNewApplicationModal(existingAppNumber = null) {
+async function showNewApplicationModal(existingAppNumber = null) {
   console.log('showNewApplicationModal called with:', existingAppNumber);
   
-  // First, ensure the modal content is loaded
+  // First, ensure modal content is loaded
   const modal = document.getElementById('newApplicationModal');
   if (!modal) {
     console.error('Modal element not found!');
@@ -88,29 +88,32 @@ function showNewApplicationModal(existingAppNumber = null) {
     return;
   }
   
-  // Load modal content if not already loaded
-  const modalContent = modal.querySelector('.modal-content');
-  if (!modalContent.hasChildNodes()) {
-    // Show a loading message
-    modalContent.innerHTML = '<div style="padding: 20px; text-align: center;">Loading form...</div>';
-    
-    // Load the modal content
-    loadNewApplicationModal().then(() => {
-      // After loading, continue with showing the modal
-      continueShowingModal(existingAppNumber);
-    });
-  } else {
-    continueShowingModal(existingAppNumber);
+  // Load modal content if needed
+  const isLoaded = await loadModalContent();
+  
+  if (!isLoaded) {
+    alert('Failed to load application form. Please try again.');
+    return;
   }
   
-  function continueShowingModal(existingAppNumber) {
-    if (existingAppNumber) {
-      // Load existing draft application
-      loadExistingApplication(existingAppNumber);
-      return;
-    }
-    
-    // Ask server for new app context (app number + folder) - FOR NEW APPLICATIONS
+  // Reset form
+  if (typeof resetNewApplicationModal === 'function') {
+    resetNewApplicationModal();
+  }
+  
+  // Show the modal
+  modal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  
+  // Ensure modal is properly positioned
+  modal.style.opacity = '1';
+  modal.style.visibility = 'visible';
+  
+  if (existingAppNumber) {
+    // Load existing application
+    loadExistingApplication(existingAppNumber);
+  } else {
+    // Get new application context
     showLoading();
     
     window.apiService.getNewApplicationContext()
@@ -122,27 +125,14 @@ function showNewApplicationModal(existingAppNumber = null) {
           window.currentAppNumber = ctx.appNumber;
           window.currentAppFolderId = ctx.folderId;
 
-          // reflect in modal header/app-number
+          // Update app number in modal
           const appNumberEl = document.getElementById('app-number');
           if (appNumberEl) {
             appNumberEl.textContent = window.currentAppNumber || '';
           }
-
-          // Show the modal
-          modal.style.display = 'block';
-          document.body.style.overflow = 'hidden';
           
-          // Reset form
-          if (typeof resetNewApplicationModal === 'function') {
-            resetNewApplicationModal();
-          }
-          
-          // open default or requested edit tab
-          const requestedTab = sessionStorage.getItem('editTab');
-          if (requestedTab && typeof openTab === 'function') {
-            openTab(requestedTab);
-            sessionStorage.removeItem('editTab');
-          } else if (typeof openTab === 'function') {
+          // Open default tab
+          if (typeof openTab === 'function') {
             openTab('tab1');
           }
         } else {
@@ -156,7 +146,6 @@ function showNewApplicationModal(existingAppNumber = null) {
       });
   }
 }
-
 // Add this to Main.js or newApps.js
 function isModalReady() {
   const modal = document.getElementById('newApplicationModal');
@@ -1258,6 +1247,7 @@ function updateFilePreviews(documents) {
     }
   });
 }
+
 
 
 
