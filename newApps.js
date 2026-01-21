@@ -54,6 +54,29 @@ function resetNewApplicationModal() {
   calculateBudget();
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+  const addAppBtn = document.querySelector('.add-app-btn');
+  if (addAppBtn) {
+    addAppBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Preload modal if not ready
+      if (!isModalReady()) {
+        showLoading();
+        loadNewApplicationModal().then(() => {
+          hideLoading();
+          showNewApplicationModal();
+        }).catch(error => {
+          hideLoading();
+          alert('Error loading form: ' + error.message);
+        });
+      } else {
+        showNewApplicationModal();
+      }
+    });
+  }
+});
+
 function showNewApplicationModal(existingAppNumber = null) {
   console.log('showNewApplicationModal called with:', existingAppNumber);
   
@@ -1235,6 +1258,7 @@ function updateFilePreviews(documents) {
     }
   });
 }
+
 
 
 
