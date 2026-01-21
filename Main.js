@@ -444,6 +444,36 @@ async function handleAppNumberClick(appNumber) {
   }
 }
 
+// Add this function to Main.js
+async function loadNewApplicationModal() {
+  const modal = document.getElementById('newApplicationModal');
+  const modalContent = modal.querySelector('.modal-content');
+  
+  if (modalContent && !modalContent.hasChildNodes()) {
+    try {
+      // Fetch the modal content from newApps.html
+      const response = await fetch('newApps.html');
+      const html = await response.text();
+      
+      // Parse the HTML content
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const modalContentFromFile = doc.querySelector('.loan-application-modal');
+      
+      if (modalContentFromFile) {
+        modalContent.appendChild(modalContentFromFile);
+        
+        // Initialize the modal scripts after content is loaded
+        if (typeof initNewApplicationScripts === 'function') {
+          setTimeout(initNewApplicationScripts, 100);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading modal content:', error);
+      modalContent.innerHTML = '<div class="error">Error loading application form. Please refresh the page.</div>';
+    }
+  }
+}
 // ----------- VIEW APPLICATION MODAL -----------
 function openViewApplicationModal(appData) {
   currentViewingAppData = appData;
@@ -839,4 +869,5 @@ window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
 window.closeViewApplicationModal = closeViewApplicationModal;
 window.setLoggedInUser = setLoggedInUser; // Add this to make it globally available
+
 
