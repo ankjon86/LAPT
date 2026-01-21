@@ -938,6 +938,37 @@ async function debugApiConnection() {
   }
 }
 
+// Add this to Main.js or run in console
+function debugModal() {
+  const modal = document.getElementById('newApplicationModal');
+  if (!modal) {
+    console.error('Modal not found');
+    return;
+  }
+  
+  console.log('Modal display:', modal.style.display);
+  console.log('Modal computed display:', window.getComputedStyle(modal).display);
+  console.log('Modal opacity:', window.getComputedStyle(modal).opacity);
+  console.log('Modal visibility:', window.getComputedStyle(modal).visibility);
+  console.log('Modal z-index:', window.getComputedStyle(modal).zIndex);
+  console.log('Modal position:', window.getComputedStyle(modal).position);
+  
+  // Check if content is there
+  const content = document.querySelector('.loan-application-modal');
+  console.log('Loan app modal exists:', !!content);
+  if (content) {
+    console.log('Content display:', window.getComputedStyle(content).display);
+  }
+  
+  // Force show for testing
+  modal.style.display = 'block';
+  modal.style.opacity = '1';
+  modal.style.visibility = 'visible';
+  modal.style.zIndex = '10000';
+}
+
+// Run in console: debugModal()
+
 // Make functions globally available
 window.showSection = showSection;
 window.refreshApplications = refreshApplications;
@@ -947,6 +978,7 @@ window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
 window.closeViewApplicationModal = closeViewApplicationModal;
 window.setLoggedInUser = setLoggedInUser; // Add this to make it globally available
+
 
 
 
