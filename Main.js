@@ -26,51 +26,6 @@ function cacheElements() {
   }
 }
 
-// Add this function to handle communication between main app and modal
-async function handleNewApplicationSave(appNumber, formData) {
-  showLoading();
-  const userName = localStorage.getItem('loggedInName');
-  
-  try {
-    const response = await window.apiService.saveApplication(appNumber, formData, userName, false);
-    hideLoading();
-    
-    if (response.success) {
-      showSuccessModal('Application saved successfully!');
-      updateBadgeCounts();
-      updateUserNotificationBadge();
-      
-      const modal = document.getElementById('newApplicationModal');
-      if (modal) {
-        modal.style.display = 'none';
-      }
-      
-      refreshApplications();
-      markApplicationSaved(appNumber, formData.name || '', false);
-    } else {
-      alert('Error: ' + response.message);
-    }
-  } catch (error) {
-    hideLoading();
-    alert('Error saving application: ' + error.message);
-  }
-}
-
-function closeModal() {
-  const modal = document.getElementById('newApplicationModal');
-  if (modal) modal.style.display = 'none';
-}
-
-// Close modal when clicking outside
-document.addEventListener('DOMContentLoaded', function() {
-  const modal = document.getElementById('newApplicationModal');
-  if (modal) {
-    window.addEventListener('click', function(event) {
-      if (event.target == modal) closeModal();
-    });
-  }
-});
-
 // ----------- DEBOUNCE HELPERS -----------
 function debounce(func, wait) {
   let timeout;
@@ -102,7 +57,6 @@ function showDashboard() {
   }
 }
 
-// ADD THE MISSING FUNCTION
 function setLoggedInUser(name, role = '') {
   const userElement = cachedElements['logged-in-user'];
   if (userElement) {
@@ -265,19 +219,6 @@ function showSection(sectionId) {
 }
 
 // ----------- APPLICATION LOGIC -----------
-async function startNewApplication() {
-  try {
-    const ctx = await window.apiService.getNewApplicationContext();
-    currentAppNumber = ctx.appNumber;
-    currentAppFolderId = ctx.folderId;
-    if (cachedElements['app-number']) {
-      cachedElements['app-number'].textContent = currentAppNumber;
-    }
-  } catch (error) {
-    alert('Error starting new application: ' + error.message);
-  }
-}
-
 function updateBadgeCount(status, count) {
   const badgeElement = document.getElementById(status + '-count');
   if (badgeElement) {
@@ -298,26 +239,7 @@ const format = {
   }
 };
 
-async function downloadLendingTemplate() {
-  if (!currentAppNumber || !currentAppFolderId) {
-    alert("Application number/folder not set.");
-    return;
-  }
-  
-  showLoading();
-  try {
-    const response = await window.apiService.copyLendingTemplate(currentAppNumber, currentAppFolderId);
-    hideLoading();
-    if (response.url) {
-      window.open(response.url, '_blank');
-    }
-  } catch (error) {
-    hideLoading();
-    alert('Error downloading template: ' + error.message);
-  }
-}
-
-// Update the showLoading and hideLoading functions
+// ----------- LOADING FUNCTIONS -----------
 function showLoading(message = 'Processing...') {
   const loadingEl = cachedElements['loading'];
   if (loadingEl) {
@@ -337,18 +259,6 @@ function hideLoading() {
 }
 
 // ----------- TABLES & APPLICATION LISTING -----------
-function getStatusBadgeClass(status) {
-  const statusMap = {
-    'DRAFT': 'status-draft',
-    'NEW': 'status-new',
-    'PENDING': 'status-pending',
-    'PENDING APPROVAL': 'status-pending',
-    'APPROVED': 'status-approved',
-    'COMPLETE': 'status-approved'
-  };
-  return statusMap[status] || 'status-pending';
-}
-
 function populateTable(tableId, applications) {
   const tbody = document.querySelector(`#${tableId}`);
   if (!tbody) {
@@ -444,81 +354,7 @@ async function handleAppNumberClick(appNumber) {
   }
 }
 
-// Add this function to Main.js
-async function loadNewApplicationModal() {
-  const modal = document.getElementById('newApplicationModal');
-  const modalContent = modal.querySelector('.modal-content');
-  
-  if (modalContent && !modalContent.hasChildNodes()) {
-    try {
-      // Fetch the modal content from newApps.html
-      const response = await fetch('newApps.html');
-      const html = await response.text();
-      
-      // Parse the HTML content
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      const modalContentFromFile = doc.querySelector('.loan-application-modal');
-      
-      if (modalContentFromFile) {
-        modalContent.appendChild(modalContentFromFile);
-        
-        // Initialize the modal scripts after content is loaded
-        if (typeof initNewApplicationScripts === 'function') {
-          setTimeout(initNewApplicationScripts, 100);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading modal content:', error);
-      modalContent.innerHTML = '<div class="error">Error loading application form. Please refresh the page.</div>';
-    }
-  }
-}
-// ----------- VIEW APPLICATION MODAL -----------
-function openViewApplicationModal(appData) {
-  currentViewingAppData = appData;
-  sessionStorage.setItem('currentViewingApp', appData.appNumber);
-  
-  if (cachedElements['viewApplicationModal']) {
-    cachedElements['viewApplicationModal'].style.display = 'block';
-    document.body.style.overflow = 'hidden';
-  }
-  
-  if (typeof window.initViewApplicationModal === 'function') {
-    window.initViewApplicationModal(appData);
-  }
-}
-
-function closeViewApplicationModal() {
-  if (cachedElements['viewApplicationModal']) {
-    cachedElements['viewApplicationModal'].style.display = 'none';
-    document.body.style.overflow = 'auto';
-    currentViewingAppData = null;
-    sessionStorage.removeItem('currentViewingApp');
-  }
-}
-
-window.closeViewApplicationModal = closeViewApplicationModal;
-
-document.addEventListener('keydown', function(event) {
-  if (event.key === 'Escape') {
-    if (cachedElements['viewApplicationModal'] && 
-        cachedElements['viewApplicationModal'].style.display === 'block') {
-      closeViewApplicationModal();
-    }
-  }
-});
-
-if (cachedElements['viewApplicationModal']) {
-  cachedElements['viewApplicationModal'].addEventListener('click', function(event) {
-    if (event.target === this) {
-      closeViewApplicationModal();
-    }
-  });
-}
-
-// ----------- LOAD APPLICATIONS -----------
-// Function to load modal content from external file
+// ----------- MODAL CONTENT LOADER -----------
 async function loadModalContent() {
   const modalContent = document.getElementById('newApplicationModalContent');
   
@@ -596,6 +432,50 @@ async function loadModalContent() {
   }
 }
 
+// ----------- VIEW APPLICATION MODAL -----------
+function openViewApplicationModal(appData) {
+  currentViewingAppData = appData;
+  sessionStorage.setItem('currentViewingApp', appData.appNumber);
+  
+  if (cachedElements['viewApplicationModal']) {
+    cachedElements['viewApplicationModal'].style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  }
+  
+  if (typeof window.initViewApplicationModal === 'function') {
+    window.initViewApplicationModal(appData);
+  }
+}
+
+function closeViewApplicationModal() {
+  if (cachedElements['viewApplicationModal']) {
+    cachedElements['viewApplicationModal'].style.display = 'none';
+    document.body.style.overflow = 'auto';
+    currentViewingAppData = null;
+    sessionStorage.removeItem('currentViewingApp');
+  }
+}
+
+window.closeViewApplicationModal = closeViewApplicationModal;
+
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    if (cachedElements['viewApplicationModal'] && 
+        cachedElements['viewApplicationModal'].style.display === 'block') {
+      closeViewApplicationModal();
+    }
+  }
+});
+
+if (cachedElements['viewApplicationModal']) {
+  cachedElements['viewApplicationModal'].addEventListener('click', function(event) {
+    if (event.target === this) {
+      closeViewApplicationModal();
+    }
+  });
+}
+
+// ----------- LOAD APPLICATIONS -----------
 async function loadApplications(sectionId, options = {}) {
   const sectionMap = {
     'new': 'NEW',
@@ -639,6 +519,7 @@ async function loadApplications(sectionId, options = {}) {
     tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${error.message}</td></tr>`;
   }
 }
+
 // ----------- UPDATE BADGE COUNTS -----------
 async function updateBadgeCounts() {
   try {
@@ -692,7 +573,6 @@ function refreshApplications() {
   debouncedRefreshApplications(false); // Manual refresh - can show loading
 }
 
-
 async function initializeAndRefreshTables() {
   await loadApplications('new', { showLoading: true });
   await updateBadgeCounts();
@@ -712,6 +592,7 @@ async function initializeAndRefreshTables() {
     }
   }, 60000); // Auto-refresh every 60 seconds
 }
+
 // ----------- USER MANAGEMENT -----------
 async function getAllUsersHandler() {
   try {
@@ -911,65 +792,41 @@ async function initializeAppCount() {
   }
 }
 
-// Add to Main.js - Debug function
-async function debugApiConnection() {
-  console.log('=== DEBUG API CONNECTION ===');
-  
-  // Test 1: Direct JSONP test
-  const testUrl = 'https://script.google.com/macros/s/AKfycbyiUV1iFQ12wcF9rwdFYjom5dueAPbw_oPGcQ1cMozHgyAUCfh4ClzHsQzeYDx3B2sC/exec?action=test_connection&callback=debugCallback&_=' + Date.now();
-  
-  window.debugCallback = function(response) {
-    console.log('Direct JSONP test response:', response);
-    delete window.debugCallback;
-  };
-  
-  const script = document.createElement('script');
-  script.src = testUrl;
-  script.onload = () => console.log('Script loaded successfully');
-  script.onerror = (e) => console.error('Script error:', e);
-  document.head.appendChild(script);
-  
-  // Test 2: Using apiService
-  try {
-    const result = await window.apiService.testConnection();
-    console.log('apiService test result:', result);
-  } catch (error) {
-    console.error('apiService test error:', error);
+// ----------- EVENT LISTENERS -----------
+document.addEventListener('DOMContentLoaded', function() {
+  // Add click handler for Add New Application button
+  const addAppBtn = document.querySelector('.add-app-btn');
+  if (addAppBtn) {
+    // Remove any existing onclick
+    addAppBtn.removeAttribute('onclick');
+    
+    addAppBtn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      console.log('Add New Application button clicked');
+      
+      // Call the modal function directly
+      if (typeof showNewApplicationModal === 'function') {
+        await showNewApplicationModal();
+      }
+    });
   }
-}
-
-// Add this to Main.js or run in console
-function debugModal() {
+  
+  // Click outside to close modal
   const modal = document.getElementById('newApplicationModal');
-  if (!modal) {
-    console.error('Modal not found');
-    return;
+  if (modal) {
+    modal.addEventListener('click', function(event) {
+      if (event.target === this) {
+        if (typeof closeNewApplicationModal === 'function') {
+          closeNewApplicationModal();
+        }
+      }
+    });
   }
-  
-  console.log('Modal display:', modal.style.display);
-  console.log('Modal computed display:', window.getComputedStyle(modal).display);
-  console.log('Modal opacity:', window.getComputedStyle(modal).opacity);
-  console.log('Modal visibility:', window.getComputedStyle(modal).visibility);
-  console.log('Modal z-index:', window.getComputedStyle(modal).zIndex);
-  console.log('Modal position:', window.getComputedStyle(modal).position);
-  
-  // Check if content is there
-  const content = document.querySelector('.loan-application-modal');
-  console.log('Loan app modal exists:', !!content);
-  if (content) {
-    console.log('Content display:', window.getComputedStyle(content).display);
-  }
-  
-  // Force show for testing
-  modal.style.display = 'block';
-  modal.style.opacity = '1';
-  modal.style.visibility = 'visible';
-  modal.style.zIndex = '10000';
-}
+});
 
-// Run in console: debugModal()
-
-// Make functions globally available
+// ----------- GLOBAL EXPORTS -----------
 window.showSection = showSection;
 window.refreshApplications = refreshApplications;
 window.refreshUsersList = refreshUsersList;
@@ -977,8 +834,4 @@ window.deleteUser = deleteUser;
 window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
 window.closeViewApplicationModal = closeViewApplicationModal;
-window.setLoggedInUser = setLoggedInUser; // Add this to make it globally available
-
-
-
-
+window.setLoggedInUser = setLoggedInUser;
