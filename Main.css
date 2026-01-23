@@ -1266,3 +1266,51 @@ body {
     color: #666;
     z-index: 1;
   }
+
+/* ===== Add this to the end of Main.css (modal-local loader + add button loading state) ===== */
+
+/* Modal-local loading (shown inside view modal's .modal-content) */
+.modal-local-loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 4000;
+  pointer-events: auto;
+  border-radius: 8px;
+}
+
+/* smaller spinner variant for modal-local use (uses existing spinner styles) */
+.modal-local-loading .spinner.small {
+  border: 3px solid rgba(0,0,0,0.08);
+  border-top: 3px solid var(--primary-600);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* loader text inside modal */
+.modal-local-loading-text {
+  color: var(--gray-700);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* inline loading state for Add button */
+.add-app-btn.loading-inline {
+  opacity: 0.85;
+  cursor: default;
+}
+.add-app-btn.loading-inline .fa-spinner { margin-right: 8px; }
+
+/* keep spinner animation consistent */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
