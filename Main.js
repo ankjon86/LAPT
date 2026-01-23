@@ -1,6 +1,4 @@
 // Main.js — single modal loader implementation (no recursion) + app logic
-// NOTE: Replace the existing Main.js with this file and hard-refresh (Ctrl+F5).
-
 // ----------- CACHED ELEMENTS & VARIABLES -----------
 const cachedElements = {};
 let currentAppNumber = "";
@@ -10,24 +8,12 @@ let notificationCheckInterval;
 let refreshInterval;
 let currentViewingAppData = null;
 
-// Cache frequently used elements
-function cacheElements() {
-  const elements = {
-    'logged-in-user': 'logged-in-user',
-    'current-date': 'current-date',
-    'loading': 'loading',
-    'success-modal': 'success-modal',
-    'success-message': 'success-message',
-    'app-number': 'app-number',
-    'user-notification-badge': 'user-notification-badge',
-    'viewApplicationModal': 'viewApplicationModal'
-  };
-  for (const [key, id] of Object.entries(elements)) {
-    cachedElements[key] = document.getElementById(id);
-  }
+// ----------- CORE HELPERS (define early so other code can call them) -----------
+function clearIntervals() {
+  if (notificationCheckInterval) clearInterval(notificationCheckInterval);
+  if (refreshInterval) clearInterval(refreshInterval);
 }
 
-// ----------- HELPERS -----------
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
@@ -57,6 +43,23 @@ function escapeHtml(s) {
   return s.toString().replace(/[&<>"']/g, function(m){ 
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; 
   });
+}
+
+// Cache frequently used elements
+function cacheElements() {
+  const elements = {
+    'logged-in-user': 'logged-in-user',
+    'current-date': 'current-date',
+    'loading': 'loading',
+    'success-modal': 'success-modal',
+    'success-message': 'success-message',
+    'app-number': 'app-number',
+    'user-notification-badge': 'user-notification-badge',
+    'viewApplicationModal': 'viewApplicationModal'
+  };
+  for (const [key, id] of Object.entries(elements)) {
+    cachedElements[key] = document.getElementById(id);
+  }
 }
 
 // ----------- PAGE INIT -----------
@@ -155,7 +158,6 @@ function restrictIfNotLoggedIn() {
   return false;
 }
 
-// simplified wrappers to keep stack safe
 async function verifyUserOnLoad(name) {
   try {
     const result = await window.apiService.login(name);
@@ -204,15 +206,7 @@ async function handleLoginFunction(name) {
   }
 }
 
-// ----------- SINGLE MODAL LOADER (FIX FOR RECURSION) ----------
-/*
-  loadModalContent(modalName)
-  modalName: 'new' | 'view'
-  - Loads newApps.html into #newApplicationModalContent
-  - Loads viewApps.html into #viewApplicationModal .modal-content
-  - Executes inline <script> tags found in the loaded HTML so in-modal scripts initialize
-  - Idempotent: if container has data-loaded attribute it won't fetch again
-*/
+// ----------- SINGLE MODAL LOADER (NO RECURSION) ----------
 async function loadModalContent(modalName = 'new') {
   console.log('loadModalContent called for', modalName);
   const cfg = modalName === 'view' ? {
@@ -232,7 +226,6 @@ async function loadModalContent(modalName = 'new') {
   }
 
   if (container.getAttribute(cfg.loadedAttr) === '1') {
-    // already loaded
     return true;
   }
 
@@ -241,7 +234,6 @@ async function loadModalContent(modalName = 'new') {
     if (!resp.ok) throw new Error(`Failed to fetch ${cfg.url}: ${resp.status}`);
     const html = await resp.text();
 
-    // extract scripts
     const scriptRe = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
     const scripts = [];
     const htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent) {
@@ -251,7 +243,6 @@ async function loadModalContent(modalName = 'new') {
 
     container.innerHTML = htmlWithoutScripts.trim();
 
-    // execute inline scripts sequentially
     scripts.forEach(scriptContent => {
       try {
         const s = document.createElement('script');
@@ -265,7 +256,6 @@ async function loadModalContent(modalName = 'new') {
 
     container.setAttribute(cfg.loadedAttr, '1');
 
-    // call common init if present
     if (modalName === 'new') {
       if (typeof window.initNewApplicationScripts === 'function') {
         try { window.initNewApplicationScripts(); } catch (e) { console.warn('initNewApplicationScripts error', e); }
@@ -285,31 +275,21 @@ async function loadModalContent(modalName = 'new') {
     return false;
   }
 }
-
-// Backwards-compatible small wrapper name (safe)
-async function loadModalContentIfNeeded(modalName = 'new') {
-  // simple forwarder; no recursion
-  return await loadModalContent(modalName);
-}
-
-// expose loader
+async function loadModalContentIfNeeded(modalName = 'new') { return await loadModalContent(modalName); }
 window.loadModalContent = loadModalContent;
 window.loadModalContentIfNeeded = loadModalContentIfNeeded;
 
 // ----------- VIEW MODAL OPEN ----------
 async function openViewApplicationModal(appData) {
-  // make sure modal html loaded
   const ok = await loadModalContent('view');
   if (!ok) {
     alert('Failed to load view modal. Please refresh the page.');
     return;
   }
 
-  // show modal (non-blocking)
   const modal = document.getElementById('viewApplicationModal');
   if (modal) modal.style.display = 'block';
 
-  // call view init function if available and pass appData
   if (typeof window.initViewApplicationModal === 'function') {
     try {
       window.initViewApplicationModal(appData);
@@ -319,13 +299,8 @@ async function openViewApplicationModal(appData) {
     }
   }
 
-  // fallback: if viewApplication exists and expects an app number, call it
   if (typeof window.viewApplication === 'function' && appData && appData.appNumber) {
-    try {
-      window.viewApplication(appData.appNumber);
-    } catch (e) {
-      console.error('viewApplication fallback failed', e);
-    }
+    try { window.viewApplication(appData.appNumber); } catch (e) { console.error('viewApplication fallback failed', e); }
   }
 }
 
@@ -388,13 +363,11 @@ async function handleAppNumberClick(appNumber) {
     hideLoading();
     if (response && response.success && response.data) {
       const appData = response.data;
-      // If it's a draft NEW, open edit modal; otherwise open view modal
       if (appData.status === 'NEW' && appData.completionStatus === 'DRAFT') {
         const ok = await loadModalContent('new');
         if (!ok) { alert('Failed to load form.'); return; }
         if (typeof showNewApplicationModal === 'function') showNewApplicationModal(appNumber);
       } else {
-        // open view modal and pass appData
         await openViewApplicationModal(appData);
       }
     } else {
@@ -475,7 +448,7 @@ async function getAllUsersHandler() {
 function refreshUsersList() { getAllUsersHandler(); }
 async function populateUsersTable() { await getAllUsersHandler(); }
 
-// ----------- NOTIFICATION helpers ----------
+// ----------- NOTIFICATIONS ----------
 function initializeBrowserNotifications() {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'granted') setupNotificationListener();
