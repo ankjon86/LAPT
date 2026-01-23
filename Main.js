@@ -1,3 +1,4 @@
+// Main.js — fixed modal loader (no recursion) and rest of app logic
 // ----------- CACHED ELEMENTS & VARIABLES -----------
 const cachedElements = {};
 let currentAppNumber = "";
@@ -5,8 +6,6 @@ let currentAppFolderId = "";
 let lastAppCount = 0;
 let notificationCheckInterval;
 let refreshInterval;
-let _startButtonOriginalHTML = null;
-let _startButtonRestoreTimer = null;
 let currentViewingAppData = null;
 
 // Cache frequently used elements
@@ -132,89 +131,89 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// loadModalContent(modal)
-// - modal: 'new' | 'view'  (default 'new')
-// Loads the corresponding modal HTML file into the correct container and executes any inline scripts found.
-// The function is idempotent: it won't reload if the container has already been marked as loaded.
-async function loadModalContent(modal = 'new') {
-  // determine the URL and target container
-  const target = modal === 'view' ? {
+// ----------- MODAL HTML LOADER (single implementation, no recursion) -----------
+/*
+  loadModalContent(modalName)
+  - modalName: 'new' | 'view'  (defaults to 'new')
+  Loads the corresponding HTML file into the designated container and executes inline <script> blocks.
+  Idempotent: if container already marked as loaded it will not refetch.
+*/
+async function loadModalContent(modalName = 'new') {
+  const config = modalName === 'view' ? {
     url: 'viewApps.html',
     containerSelector: '#viewApplicationModal .modal-content',
-    dataLoadedAttr: 'data-view-loaded'
+    loadedAttr: 'data-view-loaded'
   } : {
     url: 'newApps.html',
     containerSelector: '#newApplicationModalContent',
-    dataLoadedAttr: 'data-new-loaded'
+    loadedAttr: 'data-new-loaded'
   };
 
-  const container = document.querySelector(target.containerSelector);
+  const container = document.querySelector(config.containerSelector);
   if (!container) {
-    console.error('Modal container not found for', modal, target.containerSelector);
+    console.error('Modal container not found for', modalName, config.containerSelector);
     return false;
   }
 
-  // don't reload if already loaded
-  if (container.getAttribute(target.dataLoadedAttr) === '1') {
-    return true;
-  }
+  // if already loaded, return true
+  if (container.getAttribute(config.loadedAttr) === '1') return true;
 
   try {
-    const resp = await fetch(target.url, { cache: 'no-store' });
-    if (!resp.ok) throw new Error(`Failed to load ${target.url}: ${resp.status}`);
+    const resp = await fetch(config.url, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`Failed to load ${config.url}: ${resp.status}`);
     const html = await resp.text();
 
-    // Extract scripts
+    // Extract scripts and remove them from the HTML we inject
     const scriptRe = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-    let scripts = [];
-    let htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent) {
+    const scripts = [];
+    const htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent) {
       scripts.push(scriptContent);
       return '';
     });
 
-    // Insert the HTML (trim to remove whitespace)
+    // Inject HTML
     container.innerHTML = htmlWithoutScripts.trim();
 
-    // Execute extracted scripts in order (so inline initialization code runs)
+    // Execute inline scripts sequentially by creating script elements
     scripts.forEach(scriptContent => {
       try {
         const s = document.createElement('script');
         s.type = 'text/javascript';
         s.text = scriptContent;
         document.body.appendChild(s);
-        // keep the injected script in DOM (low overhead) so it can be inspected in devtools
       } catch (e) {
-        console.error('Error executing inline script for', target.url, e);
+        console.error('Error executing inline script for', config.url, e);
       }
     });
 
-    // Mark as loaded to avoid repeated fetches
-    container.setAttribute(target.dataLoadedAttr, '1');
+    // Mark loaded to avoid re-fetch
+    container.setAttribute(config.loadedAttr, '1');
 
-    // If the modal provided an init function (common pattern), call it if present
-    if (modal === 'new') {
+    // If modal exposes init functions, call them
+    if (modalName === 'new') {
       if (typeof window.initNewApplicationScripts === 'function') {
         try { window.initNewApplicationScripts(); } catch (e) { console.warn('initNewApplicationScripts error', e); }
       }
-    } else if (modal === 'view') {
+    } else {
       if (typeof window.viewApplicationModalInit === 'function') {
         try { window.viewApplicationModalInit(); } catch (e) { console.warn('viewApplicationModalInit error', e); }
       }
-      // also expose older name if used by code
       if (typeof window.initViewApplicationModal === 'function') {
         try { window.initViewApplicationModal(); } catch (e) { /* ignore */ }
       }
     }
 
-    console.log(`Loaded modal content for ${modal} from ${target.url}`);
+    console.log(`Loaded modal content for ${modalName} from ${config.url}`);
     return true;
-  } catch (error) {
-    console.error('loadModalContent error:', error);
+  } catch (err) {
+    console.error('loadModalContent error:', err);
     return false;
   }
 }
+// Expose loader globally (single function)
+window.loadModalContent = loadModalContent;
 
-// ----------- AUTH HELPERS (unchanged) -----------
+// ----------- AUTH HELPERS -----------
 async function verifyUserOnLoad(loggedInName) {
   try {
     const authResult = await window.apiService.login(loggedInName);
@@ -226,7 +225,8 @@ async function verifyUserOnLoad(loggedInName) {
       showDashboard();
       
       document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
-      document.getElementById('new').classList.add('active');
+      const newSection = document.getElementById('new');
+      if (newSection) newSection.classList.add('active');
       initializeAppCount();
       initializeAndRefreshTables();
     } else {
@@ -242,13 +242,8 @@ async function verifyUserOnLoad(loggedInName) {
 async function handleLoginFunction(name) {
   try {
     showLoading();
-    console.log('Attempting login for:', name);
-    
     const response = await window.apiService.login(name);
-    console.log('Login response:', response);
-    
     hideLoading();
-    
     if (response.success) {
       handleSuccessfulLogin(name, response.user);
     } else {
@@ -270,7 +265,8 @@ function handleSuccessfulLogin(name, user) {
   showDashboard();
   
   document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
-  document.getElementById('new').classList.add('active');
+  const newSection = document.getElementById('new');
+  if (newSection) newSection.classList.add('active');
   initializeAppCount();
   initializeAndRefreshTables();
   initializeBrowserNotifications();
@@ -289,7 +285,8 @@ function handleFailedLogin(message) {
 const debouncedShowSection = debounce(function(sectionId) {
   if (restrictIfNotLoggedIn()) return;
   document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
-  document.getElementById(sectionId).classList.add('active');
+  const target = document.getElementById(sectionId);
+  if (target) target.classList.add('active');
   document.querySelectorAll('.menu-btn').forEach(btn => btn.classList.remove('active'));
   const activeBtn = document.querySelector(`.menu-btn[onclick*="showSection('${sectionId}')"]`);
   if (activeBtn) activeBtn.classList.add('active');
@@ -301,7 +298,7 @@ function showSection(sectionId) {
   debouncedShowSection(sectionId); 
 }
 
-// ----------- APPLICATION LOGIC & HELPERS (unchanged) -----------
+// ----------- APPLICATION HELPERS & TABLES -----------
 function updateBadgeCount(status, count) {
   const badgeElement = document.getElementById(status + '-count');
   if (badgeElement) {
@@ -322,26 +319,20 @@ const format = {
   }
 };
 
-// ----------- LOADING FUNCTIONS -----------
 function showLoading(message = 'Processing...') {
   const loadingEl = cachedElements['loading'];
   if (loadingEl) {
     const messageEl = loadingEl.querySelector('p');
-    if (messageEl) {
-      messageEl.textContent = message;
-    }
+    if (messageEl) messageEl.textContent = message;
     loadingEl.style.display = 'flex';
   }
 }
 
 function hideLoading() {
   const loadingEl = cachedElements['loading'];
-  if (loadingEl) {
-    loadingEl.style.display = 'none';
-  }
+  if (loadingEl) loadingEl.style.display = 'none';
 }
 
-// ----------- TABLES & APPLICATION LISTING -----------
 function populateTable(tableId, applications) {
   const tbody = document.querySelector(`#${tableId}`);
   if (!tbody) {
@@ -359,7 +350,6 @@ function populateTable(tableId, applications) {
     const appNumber = row.appNumber || '';
     const tr = document.createElement('tr');
 
-    // App number cell with link
     const tdApp = document.createElement('td');
     tdApp.className = 'app-number';
     const a = document.createElement('a');
@@ -370,25 +360,21 @@ function populateTable(tableId, applications) {
     tdApp.appendChild(a);
     tr.appendChild(tdApp);
 
-    // Applicant name
     const tdName = document.createElement('td');
     tdName.className = 'applicant-name';
     tdName.textContent = row.applicantName || 'N/A';
     tr.appendChild(tdName);
 
-    // Amount
     const tdAmount = document.createElement('td');
     tdAmount.className = 'amount';
     tdAmount.textContent = format.currency(row.amount);
     tr.appendChild(tdAmount);
 
-    // Date
     const tdDate = document.createElement('td');
     tdDate.className = 'date';
     tdDate.textContent = row.date ? format.date(row.date) : 'N/A';
     tr.appendChild(tdDate);
 
-    // Action by
     const tdActionBy = document.createElement('td');
     tdActionBy.className = 'action-by';
     tdActionBy.textContent = row.actionBy || 'N/A';
@@ -418,31 +404,22 @@ async function handleAppNumberClick(appNumber) {
       const appData = response.data;
       
       if (appData.status === 'NEW' && appData.completionStatus === 'DRAFT') {
-        // Show new application modal in edit mode
-        await loadModalContent('new'); // ensure modal HTML loaded
-        if (typeof showNewApplicationModal === 'function') {
-          showNewApplicationModal(appNumber);
-        }
+        // open edit modal (new)
+        const ok = await loadModalContent('new');
+        if (!ok) { alert('Failed to load application form'); return; }
+        if (typeof showNewApplicationModal === 'function') showNewApplicationModal(appNumber);
       } else {
-        // show view modal (ensure view modal content loaded)
-        const loadedView = await loadModalContent('view');
-        if (!loadedView) {
-          alert('Failed to load view modal. Please refresh the page.');
-          return;
-        }
-        // call view modal initializer (view Apps init) with the data
+        // open view modal
+        const ok = await loadModalContent('view');
+        if (!ok) { alert('Failed to load view modal'); return; }
         if (typeof window.initViewApplicationModal === 'function') {
           window.initViewApplicationModal(response.data);
         } else if (typeof window.viewApplication === 'function') {
-          // fallback if viewApplication modal expects to reach the server itself
           window.viewApplication(appNumber);
         } else {
-          // fallback: open modal element and set session storage, call older init
-          sessionStorage.setItem('currentViewingApp', appNumber);
-          if (cachedElements['viewApplicationModal']) {
-            cachedElements['viewApplicationModal'].style.display = 'block';
-            document.body.style.overflow = 'hidden';
-          }
+          // fallback show modal
+          const modal = document.getElementById('viewApplicationModal');
+          if (modal) modal.style.display = 'block';
         }
       }
     } else {
@@ -450,180 +427,12 @@ async function handleAppNumberClick(appNumber) {
     }
   } catch (error) {
     hideLoading();
-    if (error?.message?.includes('Application not found')) {
-      alert('Application not found: ' + appNumber + '. Please try refreshing the list.');
-    } else if (error?.message?.includes('not authorized')) {
-      alert('You are not authorized to view this application.');
-    } else {
-      alert('Error loading application details: ' + (error?.message || error));
-    }
+    console.error('Error loading application details:', error);
+    alert('Error loading application details: ' + (error?.message || error));
   }
 }
 
-// ----------- MODAL CONTENT LOADER -----------
-/*
-  Note: The old implementation fetched only newApps.html.
-  This updated loader can fetch and inject both newApps.html and viewApps.html
-  and execute any inline <script> blocks they contain so their init functions become available.
-*/
-async function loadModalContentIfNeeded() {
-  // kept for backward compatibility: defaults to loading new modal content
-  return loadModalContent('new');
-}
-
-// expose the named function used by other modules
-window.loadModalContent = loadModalContentIfNeeded;
-
-async function loadModalContent(modal = 'new') {
-  // wrapper to the general loader above (keeps older callsites working)
-  return await window.loadModalContentGeneric?.(modal) ?? (await loadModalContentImplementation(modal));
-}
-
-// Implementation function (ensure it's available as well)
-async function loadModalContentImplementation(modal = 'new') {
-  return await loadModalContentGeneric(modal);
-}
-
-// Generic loader - ensure it's available for direct calls
-async function loadModalContentGeneric(modal = 'new') {
-  // delegate to the loader at top of file (we implemented earlier)
-  return await loadModalContentImpl(modal);
-}
-
-// The real implementation function (keeps name short internally)
-async function loadModalContentImpl(modal = 'new') {
-  // call the universal loader defined earlier in this file (so we don't duplicate)
-  return await (async function(m) {
-    // This wrapper will call the previously implemented loadModalContent logic
-    // (the actual logic exists above; to avoid circular references we reuse the same body here)
-    // For clarity, forward to the implementation at the top of this file.
-    // Implementation is identical to loadModalContent defined earlier in this file.
-    return await (async function(modalParam) {
-      // Determine config
-      const target = modalParam === 'view' ? {
-        url: 'viewApps.html',
-        containerSelector: '#viewApplicationModal .modal-content',
-        dataLoadedAttr: 'data-view-loaded'
-      } : {
-        url: 'newApps.html',
-        containerSelector: '#newApplicationModalContent',
-        dataLoadedAttr: 'data-new-loaded'
-      };
-
-      const container = document.querySelector(target.containerSelector);
-      if (!container) {
-        console.error('Modal container not found for', modalParam, target.containerSelector);
-        return false;
-      }
-
-      if (container.getAttribute(target.dataLoadedAttr) === '1') {
-        return true;
-      }
-
-      try {
-        const resp = await fetch(target.url, { cache: 'no-store' });
-        if (!resp.ok) throw new Error(`Failed to load ${target.url}: ${resp.status}`);
-        const html = await resp.text();
-
-        const scriptRe = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-        let scripts = [];
-        let htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent) {
-          scripts.push(scriptContent);
-          return '';
-        });
-
-        container.innerHTML = htmlWithoutScripts.trim();
-
-        scripts.forEach(scriptContent => {
-          try {
-            const s = document.createElement('script');
-            s.type = 'text/javascript';
-            s.text = scriptContent;
-            document.body.appendChild(s);
-          } catch (e) {
-            console.error('Error executing inline script for', target.url, e);
-          }
-        });
-
-        container.setAttribute(target.dataLoadedAttr, '1');
-
-        if (modalParam === 'new') {
-          if (typeof window.initNewApplicationScripts === 'function') {
-            try { window.initNewApplicationScripts(); } catch (e) { console.warn('initNewApplicationScripts error', e); }
-          }
-        } else if (modalParam === 'view') {
-          if (typeof window.viewApplicationModalInit === 'function') {
-            try { window.viewApplicationModalInit(); } catch (e) { console.warn('viewApplicationModalInit error', e); }
-          }
-          if (typeof window.initViewApplicationModal === 'function') {
-            try { window.initViewApplicationModal(); } catch (e) { /* ignore */ }
-          }
-        }
-
-        console.log(`Loaded modal content for ${modalParam} from ${target.url}`);
-        return true;
-      } catch (error) {
-        console.error('loadModalContent error:', error);
-        return false;
-      }
-    })(m);
-  })(modal);
-}
-
-// Expose generic loader for other modules to call directly
-window.loadModalContentGeneric = loadModalContentGeneric;
-window.loadModalContentImpl = loadModalContentImpl;
-
-// ----------- VIEW APPLICATION MODAL -----------
-function openViewApplicationModal(appData) {
-  currentViewingAppData = appData;
-  sessionStorage.setItem('currentViewingApp', appData.appNumber);
-
-  // Ensure view modal HTML is loaded first
-  loadModalContent('view')
-    .then(() => {
-      const modal = cachedElements['viewApplicationModal'] || document.getElementById('viewApplicationModal');
-      if (modal) {
-        modal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-      }
-
-      // Call the modal init function with appData if available
-      if (typeof window.initViewApplicationModal === 'function') {
-        try {
-          window.initViewApplicationModal(appData);
-        } catch (e) {
-          console.warn('initViewApplicationModal threw:', e);
-          // fallback: if viewApplication function exists, call it
-          if (typeof window.viewApplication === 'function') {
-            window.viewApplication(appData.appNumber);
-          }
-        }
-      } else if (typeof window.viewApplication === 'function') {
-        window.viewApplication(appData.appNumber);
-      } else {
-        // fallback: simply log
-        console.warn('No view modal initializer found after loading viewApps.html');
-      }
-    })
-    .catch(err => {
-      console.error('Failed to load view modal content:', err);
-      alert('Failed to open application view. Please refresh the page and try again.');
-    });
-}
-
-function closeViewApplicationModal() {
-  if (cachedElements['viewApplicationModal']) {
-    cachedElements['viewApplicationModal'].style.display = 'none';
-    document.body.style.overflow = 'auto';
-    currentViewingAppData = null;
-    sessionStorage.removeItem('currentViewingApp');
-  }
-}
-
-window.closeViewApplicationModal = closeViewApplicationModal;
-
-// ----------- LOAD APPLICATIONS (unchanged) -----------
+// ----------- LOAD APPLICATIONS -----------
 async function loadApplications(sectionId, options = {}) {
   const sectionMap = {
     'new': 'NEW',
@@ -638,7 +447,6 @@ async function loadApplications(sectionId, options = {}) {
   const tbody = document.getElementById(`${sectionId}-list`);
   if (!tbody) return;
   
-  // Only show loading indicator if explicitly requested AND it's not an auto-refresh
   const isAutoRefresh = options.isAutoRefresh || false;
   
   if (options.showLoading !== false && !isAutoRefresh) {
@@ -650,7 +458,7 @@ async function loadApplications(sectionId, options = {}) {
   
   try {
     const response = await window.apiService.getApplications(status, {
-      showLoading: false // API handles its own loading
+      showLoading: false
     });
     
     tbody.removeAttribute('aria-busy');
@@ -668,7 +476,7 @@ async function loadApplications(sectionId, options = {}) {
   }
 }
 
-// ----------- UPDATE BADGE COUNTS (unchanged) -----------
+// ----------- BADGES, NOTIFICATIONS & USER MANAGEMENT (unchanged) -----------
 async function updateBadgeCounts() {
   try {
     const response = await window.apiService.getApplicationCounts();
@@ -718,7 +526,7 @@ const debouncedRefreshApplications = debounce(async function(isAutoRefresh = fal
 }, 300);
 
 function refreshApplications() { 
-  debouncedRefreshApplications(false); // Manual refresh - can show loading
+  debouncedRefreshApplications(false);
 }
 
 async function initializeAndRefreshTables() {
@@ -730,7 +538,6 @@ async function initializeAndRefreshTables() {
   refreshInterval = setInterval(async () => {
     const activeSection = document.querySelector('.content-section.active')?.id;
     if (activeSection && activeSection !== 'new-application') {
-      // Auto-refresh - don't show loading overlay
       await loadApplications(activeSection, { 
         showLoading: false,
         isAutoRefresh: true 
@@ -738,23 +545,20 @@ async function initializeAndRefreshTables() {
       await updateBadgeCounts();
       await updateUserNotificationBadge();
     }
-  }, 60000); // Auto-refresh every 60 seconds
+  }, 60000);
 }
 
-// ----------- USER MANAGEMENT (unchanged) -----------
+// USER management functions (kept same as before)
 async function getAllUsersHandler() {
   try {
     const response = await window.apiService.getAllUsers();
     const users = response.data || [];
     const tbody = document.getElementById('users-list-body');
-    
     if (!tbody) return;
-    
     if (!users.length) {
       tbody.innerHTML = `<tr><td colspan="4" class="no-data">No users found</td></tr>`;
       return;
     }
-    
     tbody.innerHTML = users.map(user => `
       <tr>
         <td>${escapeHtml(user.name)}</td>
@@ -775,14 +579,8 @@ async function getAllUsersHandler() {
     }
   }
 }
-
-function refreshUsersList() { 
-  getAllUsersHandler(); 
-}
-
-async function populateUsersTable() {
-  await getAllUsersHandler();
-}
+function refreshUsersList() { getAllUsersHandler(); }
+async function populateUsersTable() { await getAllUsersHandler(); }
 
 document.addEventListener('DOMContentLoaded', function() {
   const addUserForm = document.getElementById('add-user-form');
@@ -814,33 +612,14 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-async function deleteUser(userName) {
-  if (!confirm('Are you sure you want to delete user: ' + userName + '?')) return;
-  
-  try {
-    const response = await window.apiService.deleteUser(userName);
-    if (response.success) {
-      showSuccessModal(response.message || 'User deleted!');
-      refreshUsersList();
-    } else {
-      alert('Error: ' + response.message);
-    }
-  } catch (error) {
-    alert('Error deleting user: ' + error.message);
-  }
-}
-
-// ----------- SUCCESS MODAL (unchanged) -----------
+// ----------- SUCCESS MODAL & UTILITIES -----------
 function showSuccessModal(message) {
   if (cachedElements['success-message']) cachedElements['success-message'].textContent = message;
   if (cachedElements['success-modal']) cachedElements['success-modal'].style.display = 'flex';
 }
-
 function closeSuccessModal() {
   if (cachedElements['success-modal']) cachedElements['success-modal'].style.display = 'none';
 }
-
-// ----------- UTILITY FUNCTIONS (unchanged) -----------
 function escapeHtml(s) {
   if (!s) return '';
   return s.toString().replace(/[&<>"']/g, function(m){ 
@@ -848,7 +627,7 @@ function escapeHtml(s) {
   });
 }
 
-// ----------- BROWSER NOTIFICATIONS (unchanged) -----------
+// ----------- BROWSER NOTIFICATIONS -----------
 function initializeBrowserNotifications() {
   if (!("Notification" in window)) return;
   
@@ -865,24 +644,18 @@ function initializeBrowserNotifications() {
       break;
   }
 }
-
 function setupNotificationListener() {
   if (notificationCheckInterval) clearInterval(notificationCheckInterval);
-  notificationCheckInterval = setInterval(function() { 
-    checkForNewApplications(); 
-  }, 30000);
+  notificationCheckInterval = setInterval(function() { checkForNewApplications(); }, 30000);
 }
-
 async function checkForNewApplications() {
   const userName = localStorage.getItem('loggedInName');
   if (!userName || document.visibilityState === 'visible') return;
-  
   try {
     const response = await window.apiService.getApplicationCountsForUser(userName);
     const currentCount = response.count || 0;
     const previousCount = lastAppCount;
     lastAppCount = currentCount;
-    
     if (currentCount > previousCount && previousCount > 0) {
       const newCount = currentCount - previousCount;
       const userRole = localStorage.getItem('userRole') || '';
@@ -892,7 +665,6 @@ async function checkForNewApplications() {
     console.error('Error checking applications:', error);
   }
 }
-
 function showApplicationNotification(userName, userRole, count) {
   if (Notification.permission === "granted" && document.visibilityState !== 'visible') {
     const notification = new Notification("New Application Assignment", {
@@ -901,17 +673,14 @@ function showApplicationNotification(userName, userRole, count) {
       tag: "loan-application",
       requireInteraction: true
     });
-    
     notification.onclick = function() {
       window.focus();
       notification.close();
       refreshApplications();
     };
-    
     setTimeout(() => { notification.close(); }, 10000);
   }
 }
-
 function handleVisibilityChange() {
   if (document.visibilityState === 'visible') {
     refreshApplications();
@@ -920,14 +689,11 @@ function handleVisibilityChange() {
     const userName = localStorage.getItem('loggedInName');
     if (userName) {
       window.apiService.getApplicationCountsForUser(userName)
-        .then(response => {
-          lastAppCount = response.count || 0;
-        })
+        .then(response => { lastAppCount = response.count || 0; })
         .catch(error => console.error('Error getting app count:', error));
     }
   }
 }
-
 async function initializeAppCount() {
   const userName = localStorage.getItem('loggedInName');
   if (userName) {
@@ -940,40 +706,18 @@ async function initializeAppCount() {
   }
 }
 
-// ----------- EVENT LISTENERS (small adjustments) -----------
+// ----------- EVENT LISTENERS (Add New Application wiring) -----------
 document.addEventListener('DOMContentLoaded', function() {
-  // Add click handler for Add New Application button
   const addAppBtn = document.querySelector('.add-app-btn');
   if (addAppBtn) {
-    // Remove any existing onclick
     addAppBtn.removeAttribute('onclick');
-    
     addAppBtn.addEventListener('click', async function(e) {
       e.preventDefault();
       e.stopPropagation();
-      
-      console.log('Add New Application button clicked');
-      
-      // Ensure modal content is loaded then show it
-      const loaded = await loadModalContent('new');
-      if (!loaded) {
-        alert('Failed to load application form. Please refresh the page.');
-        return;
-      }
+      const ok = await loadModalContent('new');
+      if (!ok) { alert('Failed to load application form'); return; }
       if (typeof showNewApplicationModal === 'function') {
-        await showNewApplicationModal();
-      }
-    });
-  }
-  
-  // Click outside to close new application modal (guard)
-  const modal = document.getElementById('newApplicationModal');
-  if (modal) {
-    modal.addEventListener('click', function(event) {
-      if (event.target === this) {
-        if (typeof closeNewApplicationModal === 'function') {
-          closeNewApplicationModal();
-        }
+        showNewApplicationModal();
       }
     });
   }
@@ -986,7 +730,10 @@ window.refreshUsersList = refreshUsersList;
 window.deleteUser = deleteUser;
 window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
-window.closeViewApplicationModal = closeViewApplicationModal;
+window.closeViewApplicationModal = function() {
+  const modal = document.getElementById('viewApplicationModal');
+  if (modal) modal.style.display = 'none';
+  try { document.body.style.overflow = ''; } catch (e) {}
+};
 window.setLoggedInUser = setLoggedInUser;
-window.loadModalContentGeneric = loadModalContentGeneric;
-window.loadModalContentImpl = loadModalContentImpl;
+window.loadModalContent = loadModalContent;
