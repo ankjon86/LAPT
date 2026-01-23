@@ -1267,13 +1267,13 @@ body {
     z-index: 1;
   }
 
-/* ===== Add this to the end of Main.css (modal-local loader + add button loading state) ===== */
+/* ===== Add to Main.css (or replace existing modal-local/global loader CSS) ===== */
 
 /* Modal-local loading (shown inside view modal's .modal-content) */
 .modal-local-loading {
   position: absolute;
   inset: 0;
-  background: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.88);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1282,9 +1282,10 @@ body {
   z-index: 4000;
   pointer-events: auto;
   border-radius: 8px;
+  text-align: center;
 }
 
-/* smaller spinner variant for modal-local use (uses existing spinner styles) */
+/* smaller spinner variant for modal-local use */
 .modal-local-loading .spinner.small {
   border: 3px solid rgba(0,0,0,0.08);
   border-top: 3px solid var(--primary-600);
@@ -1301,16 +1302,60 @@ body {
   font-weight: 600;
 }
 
-/* inline loading state for Add button */
-.add-app-btn.loading-inline {
-  opacity: 0.85;
-  cursor: default;
+/* Global modal loader — centered modal card with backdrop */
+.global-loading-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  align-items: center;
+  justify-content: center;
 }
-.add-app-btn.loading-inline .fa-spinner { margin-right: 8px; }
+
+/* backdrop occupies whole screen but is semi-transparent; global-loading-card is centered */
+.global-loading-modal .global-loading-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(1px);
+  pointer-events: auto;
+}
+
+/* centered card */
+.global-loading-modal .global-loading-card {
+  position: relative;
+  z-index: 5001;
+  background: var(--white);
+  padding: 20px 26px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+  max-width: 90%;
+  text-align: center;
+}
+
+.global-loading-modal .global-loading-message {
+  color: var(--gray-700);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* large spinner */
+.global-loading-modal .spinner.large {
+  border: 5px solid rgba(0,0,0,0.08);
+  border-top: 5px solid var(--primary-600);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
 
 /* keep spinner animation consistent */
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
