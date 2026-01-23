@@ -524,34 +524,55 @@ function populateTable(tableId, applications) {
   tbody.replaceChildren(frag);
 }
 
-// handle clicking an application number
+// Replace existing handleAppNumberClick with this implementation
 async function handleAppNumberClick(appNumber) {
   if (!appNumber) { alert('Invalid application number'); return; }
   const userName = localStorage.getItem('loggedInName') || '';
 
+  // Ensure view modal HTML is loaded into the existing container first.
+  const loaded = await loadModalContent('view');
+  if (!loaded) {
+    alert('Failed to load view modal. Please refresh the page.');
+    return;
+  }
+
+  // Show the view modal (so showLoading will render a modal-local loader)
+  const modal = document.getElementById('viewApplicationModal');
+  if (!modal) {
+    console.error('viewApplicationModal element not found');
+    return;
+  }
+  modal.style.display = 'block';
+  modal.classList.add('active');
+
+  // Use modal-local loader while we fetch details (showLoading detects the open view modal)
   showLoading('Loading application details...');
   try {
     const response = await window.apiService.getApplicationDetails(appNumber, userName);
     hideLoading();
+
     if (response && response.success && response.data) {
       const appData = response.data;
-      if (appData.status === 'NEW' && appData.completionStatus === 'DRAFT') {
-        const ok = await loadModalContent('new');
-        if (!ok) { alert('Failed to load form.'); return; }
-        if (typeof showNewApplicationModal === 'function') showNewApplicationModal(appNumber);
+      // Initialize the view modal with the data
+      // initViewApplicationModal is tolerant and will use the passed data
+      if (typeof initViewApplicationModal === 'function') {
+        try { initViewApplicationModal(appData); }
+        catch (e) { console.warn('initViewApplicationModal error', e); }
       } else {
-        await openViewApplicationModal(appData);
+        // fallback to older path if needed
+        if (typeof viewApplication === 'function') viewApplication(appNumber);
       }
     } else {
       alert('Failed to load application: ' + (response?.message || 'Not found'));
+      closeViewApplicationModal();
     }
   } catch (err) {
     hideLoading();
     console.error('Error loading application details', err);
     alert('Error loading application details: ' + (err && err.message ? err.message : err));
+    closeViewApplicationModal();
   }
 }
-
 // ----------- BADGE & NOTIFICATION HELPERS ----------
 async function updateBadgeCounts() {
   try {
@@ -677,3 +698,4 @@ window.closeSuccessModal = closeSuccessModal;
 window.setLoggedInUser = setLoggedInUser;
 window.loadModalContent = loadModalContent;
 window.loadModalContentIfNeeded = loadModalContentIfNeeded;
+
