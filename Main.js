@@ -132,6 +132,89 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+// loadModalContent(modal)
+// - modal: 'new' | 'view'  (default 'new')
+// Loads the corresponding modal HTML file into the correct container and executes any inline scripts found.
+// The function is idempotent: it won't reload if the container has already been marked as loaded.
+async function loadModalContent(modal = 'new') {
+  // determine the URL and target container
+  const target = modal === 'view' ? {
+    url: 'viewApps.html',
+    containerSelector: '#viewApplicationModal .modal-content',
+    dataLoadedAttr: 'data-view-loaded'
+  } : {
+    url: 'newApps.html',
+    containerSelector: '#newApplicationModalContent',
+    dataLoadedAttr: 'data-new-loaded'
+  };
+
+  const container = document.querySelector(target.containerSelector);
+  if (!container) {
+    console.error('Modal container not found for', modal, target.containerSelector);
+    return false;
+  }
+
+  // don't reload if already loaded
+  if (container.getAttribute(target.dataLoadedAttr) === '1') {
+    return true;
+  }
+
+  try {
+    const resp = await fetch(target.url, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`Failed to load ${target.url}: ${resp.status}`);
+    const html = await resp.text();
+
+    // Extract scripts
+    const scriptRe = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+    let scripts = [];
+    let htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent) {
+      scripts.push(scriptContent);
+      return '';
+    });
+
+    // Insert the HTML (trim to remove whitespace)
+    container.innerHTML = htmlWithoutScripts.trim();
+
+    // Execute extracted scripts in order (so inline initialization code runs)
+    scripts.forEach(scriptContent => {
+      try {
+        const s = document.createElement('script');
+        s.type = 'text/javascript';
+        s.text = scriptContent;
+        document.body.appendChild(s);
+        // keep the injected script in DOM (low overhead) so it can be inspected in devtools
+      } catch (e) {
+        console.error('Error executing inline script for', target.url, e);
+      }
+    });
+
+    // Mark as loaded to avoid repeated fetches
+    container.setAttribute(target.dataLoadedAttr, '1');
+
+    // If the modal provided an init function (common pattern), call it if present
+    if (modal === 'new') {
+      if (typeof window.initNewApplicationScripts === 'function') {
+        try { window.initNewApplicationScripts(); } catch (e) { console.warn('initNewApplicationScripts error', e); }
+      }
+    } else if (modal === 'view') {
+      if (typeof window.viewApplicationModalInit === 'function') {
+        try { window.viewApplicationModalInit(); } catch (e) { console.warn('viewApplicationModalInit error', e); }
+      }
+      // also expose older name if used by code
+      if (typeof window.initViewApplicationModal === 'function') {
+        try { window.initViewApplicationModal(); } catch (e) { /* ignore */ }
+      }
+    }
+
+    console.log(`Loaded modal content for ${modal} from ${target.url}`);
+    return true;
+  } catch (error) {
+    console.error('loadModalContent error:', error);
+    return false;
+  }
+}
+
+// ----------- AUTH HELPERS (unchanged) -----------
 async function verifyUserOnLoad(loggedInName) {
   try {
     const authResult = await window.apiService.login(loggedInName);
@@ -218,7 +301,7 @@ function showSection(sectionId) {
   debouncedShowSection(sectionId); 
 }
 
-// ----------- APPLICATION LOGIC -----------
+// ----------- APPLICATION LOGIC & HELPERS (unchanged) -----------
 function updateBadgeCount(status, count) {
   const badgeElement = document.getElementById(status + '-count');
   if (badgeElement) {
@@ -335,9 +418,32 @@ async function handleAppNumberClick(appNumber) {
       const appData = response.data;
       
       if (appData.status === 'NEW' && appData.completionStatus === 'DRAFT') {
-        showNewApplicationModal(appNumber);
+        // Show new application modal in edit mode
+        await loadModalContent('new'); // ensure modal HTML loaded
+        if (typeof showNewApplicationModal === 'function') {
+          showNewApplicationModal(appNumber);
+        }
       } else {
-        openViewApplicationModal(appData);
+        // show view modal (ensure view modal content loaded)
+        const loadedView = await loadModalContent('view');
+        if (!loadedView) {
+          alert('Failed to load view modal. Please refresh the page.');
+          return;
+        }
+        // call view modal initializer (view Apps init) with the data
+        if (typeof window.initViewApplicationModal === 'function') {
+          window.initViewApplicationModal(response.data);
+        } else if (typeof window.viewApplication === 'function') {
+          // fallback if viewApplication modal expects to reach the server itself
+          window.viewApplication(appNumber);
+        } else {
+          // fallback: open modal element and set session storage, call older init
+          sessionStorage.setItem('currentViewingApp', appNumber);
+          if (cachedElements['viewApplicationModal']) {
+            cachedElements['viewApplicationModal'].style.display = 'block';
+            document.body.style.overflow = 'hidden';
+          }
+        }
       }
     } else {
       alert('Failed to load application: ' + (response?.message || 'Application not found'));
@@ -355,96 +461,155 @@ async function handleAppNumberClick(appNumber) {
 }
 
 // ----------- MODAL CONTENT LOADER -----------
-async function loadModalContent() {
-  const modalContent = document.getElementById('newApplicationModalContent');
-  
-  if (!modalContent) {
-    console.error('Modal content container not found');
-    return false;
-  }
-  
-  // Don't reload if already loaded
-  if (modalContent.innerHTML.trim() !== '') {
-    console.log('Modal content already loaded');
-    return true;
-  }
-  
-  showLoading('Loading application form...');
-  
-  try {
-    // Fetch the modal HTML
-    const response = await fetch('newApps.html');
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const html = await response.text();
-    
-    // Extract the content between the file markers
-    const startMarker = '[file content begin]';
-    const endMarker = '[file content end]';
-    const startIndex = html.indexOf(startMarker);
-    const endIndex = html.indexOf(endMarker);
-    
-    if (startIndex === -1 || endIndex === -1) {
-      // If markers not found, use the entire content
-      modalContent.innerHTML = html;
-    } else {
-      // Extract content between markers
-      const content = html.substring(startIndex + startMarker.length, endIndex);
-      modalContent.innerHTML = content.trim();
-    }
-    
-    console.log('Modal content loaded successfully');
-    
-    // Initialize the modal scripts
-    setTimeout(() => {
-      if (typeof initNewApplicationScripts === 'function') {
-        initNewApplicationScripts();
-      }
-      
-      // Also trigger any other initialization
-      if (typeof calculateTotals === 'function') {
-        calculateTotals();
-      }
-      if (typeof calculateBudget === 'function') {
-        calculateBudget();
-      }
-    }, 100);
-    
-    hideLoading();
-    return true;
-    
-  } catch (error) {
-    console.error('Error loading modal content:', error);
-    modalContent.innerHTML = `
-      <div style="padding: 40px; text-align: center;">
-        <h3>Error Loading Form</h3>
-        <p>Failed to load application form. Please refresh the page.</p>
-        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer;">
-          Refresh Page
-        </button>
-      </div>
-    `;
-    hideLoading();
-    return false;
-  }
+/*
+  Note: The old implementation fetched only newApps.html.
+  This updated loader can fetch and inject both newApps.html and viewApps.html
+  and execute any inline <script> blocks they contain so their init functions become available.
+*/
+async function loadModalContentIfNeeded() {
+  // kept for backward compatibility: defaults to loading new modal content
+  return loadModalContent('new');
 }
+
+// expose the named function used by other modules
+window.loadModalContent = loadModalContentIfNeeded;
+
+async function loadModalContent(modal = 'new') {
+  // wrapper to the general loader above (keeps older callsites working)
+  return await window.loadModalContentGeneric?.(modal) ?? (await loadModalContentImplementation(modal));
+}
+
+// Implementation function (ensure it's available as well)
+async function loadModalContentImplementation(modal = 'new') {
+  return await loadModalContentGeneric(modal);
+}
+
+// Generic loader - ensure it's available for direct calls
+async function loadModalContentGeneric(modal = 'new') {
+  // delegate to the loader at top of file (we implemented earlier)
+  return await loadModalContentImpl(modal);
+}
+
+// The real implementation function (keeps name short internally)
+async function loadModalContentImpl(modal = 'new') {
+  // call the universal loader defined earlier in this file (so we don't duplicate)
+  return await (async function(m) {
+    // This wrapper will call the previously implemented loadModalContent logic
+    // (the actual logic exists above; to avoid circular references we reuse the same body here)
+    // For clarity, forward to the implementation at the top of this file.
+    // Implementation is identical to loadModalContent defined earlier in this file.
+    return await (async function(modalParam) {
+      // Determine config
+      const target = modalParam === 'view' ? {
+        url: 'viewApps.html',
+        containerSelector: '#viewApplicationModal .modal-content',
+        dataLoadedAttr: 'data-view-loaded'
+      } : {
+        url: 'newApps.html',
+        containerSelector: '#newApplicationModalContent',
+        dataLoadedAttr: 'data-new-loaded'
+      };
+
+      const container = document.querySelector(target.containerSelector);
+      if (!container) {
+        console.error('Modal container not found for', modalParam, target.containerSelector);
+        return false;
+      }
+
+      if (container.getAttribute(target.dataLoadedAttr) === '1') {
+        return true;
+      }
+
+      try {
+        const resp = await fetch(target.url, { cache: 'no-store' });
+        if (!resp.ok) throw new Error(`Failed to load ${target.url}: ${resp.status}`);
+        const html = await resp.text();
+
+        const scriptRe = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+        let scripts = [];
+        let htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent) {
+          scripts.push(scriptContent);
+          return '';
+        });
+
+        container.innerHTML = htmlWithoutScripts.trim();
+
+        scripts.forEach(scriptContent => {
+          try {
+            const s = document.createElement('script');
+            s.type = 'text/javascript';
+            s.text = scriptContent;
+            document.body.appendChild(s);
+          } catch (e) {
+            console.error('Error executing inline script for', target.url, e);
+          }
+        });
+
+        container.setAttribute(target.dataLoadedAttr, '1');
+
+        if (modalParam === 'new') {
+          if (typeof window.initNewApplicationScripts === 'function') {
+            try { window.initNewApplicationScripts(); } catch (e) { console.warn('initNewApplicationScripts error', e); }
+          }
+        } else if (modalParam === 'view') {
+          if (typeof window.viewApplicationModalInit === 'function') {
+            try { window.viewApplicationModalInit(); } catch (e) { console.warn('viewApplicationModalInit error', e); }
+          }
+          if (typeof window.initViewApplicationModal === 'function') {
+            try { window.initViewApplicationModal(); } catch (e) { /* ignore */ }
+          }
+        }
+
+        console.log(`Loaded modal content for ${modalParam} from ${target.url}`);
+        return true;
+      } catch (error) {
+        console.error('loadModalContent error:', error);
+        return false;
+      }
+    })(m);
+  })(modal);
+}
+
+// Expose generic loader for other modules to call directly
+window.loadModalContentGeneric = loadModalContentGeneric;
+window.loadModalContentImpl = loadModalContentImpl;
 
 // ----------- VIEW APPLICATION MODAL -----------
 function openViewApplicationModal(appData) {
   currentViewingAppData = appData;
   sessionStorage.setItem('currentViewingApp', appData.appNumber);
-  
-  if (cachedElements['viewApplicationModal']) {
-    cachedElements['viewApplicationModal'].style.display = 'block';
-    document.body.style.overflow = 'hidden';
-  }
-  
-  if (typeof window.initViewApplicationModal === 'function') {
-    window.initViewApplicationModal(appData);
-  }
+
+  // Ensure view modal HTML is loaded first
+  loadModalContent('view')
+    .then(() => {
+      const modal = cachedElements['viewApplicationModal'] || document.getElementById('viewApplicationModal');
+      if (modal) {
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+      }
+
+      // Call the modal init function with appData if available
+      if (typeof window.initViewApplicationModal === 'function') {
+        try {
+          window.initViewApplicationModal(appData);
+        } catch (e) {
+          console.warn('initViewApplicationModal threw:', e);
+          // fallback: if viewApplication function exists, call it
+          if (typeof window.viewApplication === 'function') {
+            window.viewApplication(appData.appNumber);
+          }
+        }
+      } else if (typeof window.viewApplication === 'function') {
+        window.viewApplication(appData.appNumber);
+      } else {
+        // fallback: simply log
+        console.warn('No view modal initializer found after loading viewApps.html');
+      }
+    })
+    .catch(err => {
+      console.error('Failed to load view modal content:', err);
+      alert('Failed to open application view. Please refresh the page and try again.');
+    });
 }
 
 function closeViewApplicationModal() {
@@ -458,24 +623,7 @@ function closeViewApplicationModal() {
 
 window.closeViewApplicationModal = closeViewApplicationModal;
 
-document.addEventListener('keydown', function(event) {
-  if (event.key === 'Escape') {
-    if (cachedElements['viewApplicationModal'] && 
-        cachedElements['viewApplicationModal'].style.display === 'block') {
-      closeViewApplicationModal();
-    }
-  }
-});
-
-if (cachedElements['viewApplicationModal']) {
-  cachedElements['viewApplicationModal'].addEventListener('click', function(event) {
-    if (event.target === this) {
-      closeViewApplicationModal();
-    }
-  });
-}
-
-// ----------- LOAD APPLICATIONS -----------
+// ----------- LOAD APPLICATIONS (unchanged) -----------
 async function loadApplications(sectionId, options = {}) {
   const sectionMap = {
     'new': 'NEW',
@@ -520,7 +668,7 @@ async function loadApplications(sectionId, options = {}) {
   }
 }
 
-// ----------- UPDATE BADGE COUNTS -----------
+// ----------- UPDATE BADGE COUNTS (unchanged) -----------
 async function updateBadgeCounts() {
   try {
     const response = await window.apiService.getApplicationCounts();
@@ -593,7 +741,7 @@ async function initializeAndRefreshTables() {
   }, 60000); // Auto-refresh every 60 seconds
 }
 
-// ----------- USER MANAGEMENT -----------
+// ----------- USER MANAGEMENT (unchanged) -----------
 async function getAllUsersHandler() {
   try {
     const response = await window.apiService.getAllUsers();
@@ -682,7 +830,7 @@ async function deleteUser(userName) {
   }
 }
 
-// ----------- SUCCESS MODAL -----------
+// ----------- SUCCESS MODAL (unchanged) -----------
 function showSuccessModal(message) {
   if (cachedElements['success-message']) cachedElements['success-message'].textContent = message;
   if (cachedElements['success-modal']) cachedElements['success-modal'].style.display = 'flex';
@@ -692,7 +840,7 @@ function closeSuccessModal() {
   if (cachedElements['success-modal']) cachedElements['success-modal'].style.display = 'none';
 }
 
-// ----------- UTILITY FUNCTIONS -----------
+// ----------- UTILITY FUNCTIONS (unchanged) -----------
 function escapeHtml(s) {
   if (!s) return '';
   return s.toString().replace(/[&<>"']/g, function(m){ 
@@ -700,7 +848,7 @@ function escapeHtml(s) {
   });
 }
 
-// ----------- BROWSER NOTIFICATIONS -----------
+// ----------- BROWSER NOTIFICATIONS (unchanged) -----------
 function initializeBrowserNotifications() {
   if (!("Notification" in window)) return;
   
@@ -792,7 +940,7 @@ async function initializeAppCount() {
   }
 }
 
-// ----------- EVENT LISTENERS -----------
+// ----------- EVENT LISTENERS (small adjustments) -----------
 document.addEventListener('DOMContentLoaded', function() {
   // Add click handler for Add New Application button
   const addAppBtn = document.querySelector('.add-app-btn');
@@ -806,14 +954,19 @@ document.addEventListener('DOMContentLoaded', function() {
       
       console.log('Add New Application button clicked');
       
-      // Call the modal function directly
+      // Ensure modal content is loaded then show it
+      const loaded = await loadModalContent('new');
+      if (!loaded) {
+        alert('Failed to load application form. Please refresh the page.');
+        return;
+      }
       if (typeof showNewApplicationModal === 'function') {
         await showNewApplicationModal();
       }
     });
   }
   
-  // Click outside to close modal
+  // Click outside to close new application modal (guard)
   const modal = document.getElementById('newApplicationModal');
   if (modal) {
     modal.addEventListener('click', function(event) {
@@ -835,3 +988,5 @@ window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
 window.closeViewApplicationModal = closeViewApplicationModal;
 window.setLoggedInUser = setLoggedInUser;
+window.loadModalContentGeneric = loadModalContentGeneric;
+window.loadModalContentImpl = loadModalContentImpl;
