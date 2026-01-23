@@ -1,6 +1,3 @@
-// viewApplicationJS.html - View Application Modal JavaScript (updated for scroll behavior
-// and "Edit" behavior: the view modal will close when Edit is clicked)
-
 console.log('viewApplicationJS loaded (scroll + edit changes)');
 
 let currentAppData = null;
