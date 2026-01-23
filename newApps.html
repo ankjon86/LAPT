@@ -478,3 +478,56 @@
     </div>
   </div>
 </div>
+<script>
+  (function() {
+    // Auto-resize textareas
+    function autoResizeTextarea(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = (textarea.scrollHeight) + 'px';
+    }
+
+    function initAutoResize() {
+      document.querySelectorAll('#newApplicationModal textarea').forEach(t => {
+        // disable native resizer to keep more consistent layout
+        t.style.resize = 'none';
+        autoResizeTextarea(t);
+        t.addEventListener('input', () => {
+          autoResizeTextarea(t);
+        }, { passive: true });
+      });
+    }
+
+    // Observe table body changes (rows added/removed) and ensure modal reflows
+    function initTableObservers() {
+      const tableIds = ['loanHistoryTable','personalBudgetTable','monthlyTurnoverTable'];
+      tableIds.forEach(id => {
+        const table = document.getElementById(id);
+        if (!table) return;
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+        const observer = new MutationObserver(() => {
+          // force a reflow so the modal's size updates immediately
+          const mc = document.querySelector('.modal-content');
+          if (mc) {
+            mc.style.maxHeight = 'none';
+            // small noop to force layout update:
+            mc.getBoundingClientRect();
+          }
+        });
+        observer.observe(tbody, { childList: true, subtree: true });
+      });
+    }
+
+    // Run initialization when DOM content loads
+    document.addEventListener('DOMContentLoaded', () => {
+      initAutoResize();
+      initTableObservers();
+    });
+
+    // If modal content is generated dynamically after load (e.g. opened later), call init functions again:
+    window.newApplicationModalInit = function() {
+      initAutoResize();
+      initTableObservers();
+    };
+  })();
+</script>
