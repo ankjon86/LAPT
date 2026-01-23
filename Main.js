@@ -8,6 +8,9 @@ let notificationCheckInterval;
 let refreshInterval;
 let currentViewingAppData = null;
 
+// Per-section state to avoid flicker and handle concurrent requests
+const sectionStates = {}; // { [sectionId]: { requestId: number } }
+
 // ----------- CORE HELPERS (define early so other code can call them) -----------
 function clearIntervals() {
   if (notificationCheckInterval) clearInterval(notificationCheckInterval);
@@ -112,7 +115,114 @@ function escapeHtml(s) {
   });
 }
 
-// Cache frequently used elements
+// --------- Table helpers to reduce flicker & DOM churn ----------
+function ensureSectionState(sectionId) {
+  if (!sectionStates[sectionId]) sectionStates[sectionId] = { requestId: 0, loading: false };
+  return sectionStates[sectionId];
+}
+
+function setSectionHeaderLoading(sectionId, isLoading) {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  const actions = section.querySelector('.section-actions');
+  if (!actions) return;
+  let spinner = actions.querySelector('.section-spinner');
+  if (isLoading) {
+    if (!spinner) {
+      spinner = document.createElement('div');
+      spinner.className = 'section-spinner';
+      spinner.innerHTML = `<div class="spinner-inline" aria-hidden="true"></div><span class="section-spinner-text">Updating...</span>`;
+      actions.appendChild(spinner);
+    } else {
+      spinner.style.display = 'inline-flex';
+    }
+  } else {
+    if (spinner) spinner.style.display = 'none';
+  }
+}
+
+// Create a table row element for an application (used both for initial render and for adding new rows)
+function createRowForApplication(app) {
+  const tr = document.createElement('tr');
+
+  const tdApp = document.createElement('td'); tdApp.className='app-number';
+  const a = document.createElement('a'); a.href='javascript:void(0)'; a.className='app-number-link';
+  a.textContent = app.appNumber || ''; a.addEventListener('click', () => handleAppNumberClick(app.appNumber));
+  tdApp.appendChild(a); tr.appendChild(tdApp);
+
+  const tdName = document.createElement('td'); tdName.className='applicant-name'; tdName.textContent = app.applicantName || 'N/A'; tr.appendChild(tdName);
+  const tdAmount = document.createElement('td'); tdAmount.className='amount'; tdAmount.textContent = (app.amount==null?'0.00':Number(app.amount).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})); tr.appendChild(tdAmount);
+  const tdDate = document.createElement('td'); tdDate.className='date'; tdDate.textContent = app.date ? new Date(app.date).toLocaleDateString() : 'N/A'; tr.appendChild(tdDate);
+  const tdActionBy = document.createElement('td'); tdActionBy.className='action-by'; tdActionBy.textContent = app.actionBy || 'N/A'; tr.appendChild(tdActionBy);
+
+  return tr;
+}
+
+// Diffing update: reuse existing rows when possible to reduce reflow/flicker.
+// We maintain order matching 'applications' array.
+function diffUpdateTable(tableId, applications) {
+  const tbody = document.querySelector(`#${tableId}`);
+  if (!tbody) return;
+
+  // Build map of existing rows keyed by appNumber
+  const existingRows = new Map();
+  Array.from(tbody.children).forEach(row => {
+    const anchor = row.querySelector('.app-number-link');
+    const key = anchor ? anchor.textContent : null;
+    if (key) existingRows.set(key, row);
+  });
+
+  const frag = document.createDocumentFragment();
+  const seenKeys = new Set();
+
+  applications.forEach(app => {
+    const key = app.appNumber || '';
+    seenKeys.add(key);
+    const existing = existingRows.get(key);
+    if (existing) {
+      // Update cells only if something changed (lightweight compare)
+      const nameCell = existing.querySelector('.applicant-name');
+      const amountCell = existing.querySelector('.amount');
+      const dateCell = existing.querySelector('.date');
+      const actionByCell = existing.querySelector('.action-by');
+
+      let changed = false;
+      if ((nameCell && nameCell.textContent) !== (app.applicantName || 'N/A')) { if (nameCell) nameCell.textContent = app.applicantName || 'N/A'; changed = true; }
+      const formattedAmount = (app.amount==null?'0.00':Number(app.amount).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
+      if ((amountCell && amountCell.textContent) !== formattedAmount) { if (amountCell) amountCell.textContent = formattedAmount; changed = true; }
+      const formattedDate = app.date ? new Date(app.date).toLocaleDateString() : 'N/A';
+      if ((dateCell && dateCell.textContent) !== formattedDate) { if (dateCell) dateCell.textContent = formattedDate; changed = true; }
+      if ((actionByCell && actionByCell.textContent) !== (app.actionBy || 'N/A')) { if (actionByCell) actionByCell.textContent = app.actionBy || 'N/A'; changed = true; }
+
+      // Move existing row into the fragment (this preserves the DOM node, avoids recreation)
+      frag.appendChild(existing);
+
+      if (changed) {
+        // Visual highlight for updated rows
+        existing.classList.remove('row-updated');
+        // trigger reflow then add class
+        void existing.offsetWidth;
+        existing.classList.add('row-updated');
+        // remove highlight after a short delay
+        setTimeout(() => existing.classList.remove('row-updated'), 1400);
+      }
+    } else {
+      // Create new row
+      const newRow = createRowForApplication(app);
+      // small entry animation
+      newRow.classList.add('row-updated');
+      frag.appendChild(newRow);
+      setTimeout(() => newRow.classList.remove('row-updated'), 1400);
+    }
+  });
+
+  // Replace tbody children with the fragment — nodes moved above will be reused
+  tbody.replaceChildren(frag);
+
+  // Remove any rows that were not in the new data (leftover rows already excluded because replaceChildren used only frag)
+}
+
+// ----------- PAGE INIT -----------
 function cacheElements() {
   const elements = {
     'logged-in-user': 'logged-in-user',
@@ -129,10 +239,7 @@ function cacheElements() {
   }
 }
 
-// ----------- PAGE INIT -----------
 window.addEventListener('load', function() {
-  // Do not clear logged-in user on full load — keep session across navigations.
-  // Only clear background intervals to avoid duplicates.
   clearIntervals();
 });
 
@@ -173,14 +280,13 @@ document.addEventListener('DOMContentLoaded', function() {
     addAppBtn.addEventListener('click', async function(e) {
       e.preventDefault();
       e.stopPropagation();
-      console.log('Add New Application button clicked');
       const ok = await loadModalContent('new');
       if (!ok) {
         alert('Failed to load application form. Please refresh the page.');
         return;
       }
       if (typeof showNewApplicationModal === 'function') {
-        showNewApplicationModal(); // showNewApplicationModal handles its own lightweight UI indicators
+        showNewApplicationModal();
       }
     });
   }
@@ -276,7 +382,6 @@ async function handleLoginFunction(name) {
 
 // ----------- SINGLE MODAL LOADER (NO RECURSION) ----------
 async function loadModalContent(modalName = 'new') {
-  console.log('loadModalContent called for', modalName);
   const cfg = modalName === 'view' ? {
     url: 'viewApps.html',
     containerSelector: '#viewApplicationModal .modal-content',
@@ -302,28 +407,23 @@ async function loadModalContent(modalName = 'new') {
     if (!resp.ok) throw new Error(`Failed to fetch ${cfg.url}: ${resp.status}`);
     const html = await resp.text();
 
-    // Parse HTML so we can selectively inject only the inner modal content when needed
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
-    // If the fetched file contains a top-level modal with id 'viewApplicationModal', extract its .modal-content
     if (modalName === 'view') {
       const fetchedModal = doc.getElementById('viewApplicationModal');
       if (fetchedModal) {
         const innerContent = fetchedModal.querySelector('.modal-content');
         if (innerContent) {
-          // Remove any <script> nodes inside innerContent from the string version and collect scripts separately
           const scripts = Array.from(innerContent.querySelectorAll('script'));
           scripts.forEach(s => s.parentNode && s.parentNode.removeChild(s));
           container.innerHTML = innerContent.innerHTML.trim();
 
-          // Execute inline scripts found anywhere in the fetched doc (including ones outside .modal-content)
           const inlineScripts = Array.from(doc.querySelectorAll('script'));
           inlineScripts.forEach(scriptEl => {
             try {
               const s = document.createElement('script');
               if (scriptEl.src) {
-                // external script: append as src
                 s.src = scriptEl.src;
                 s.async = false;
                 document.body.appendChild(s);
@@ -338,17 +438,14 @@ async function loadModalContent(modalName = 'new') {
           });
 
           container.setAttribute(cfg.loadedAttr, '1');
-          // call init functions for view modal if they exist
           if (typeof window.viewApplicationModalInit === 'function') {
             try { window.viewApplicationModalInit(); } catch (e) { console.warn('viewApplicationModalInit error', e); }
           }
           return true;
         }
       }
-      // Fallback: no outer wrapper found — fall through to inject whole body (handled below)
     }
 
-    // Generic path: extract body innerHTML but strip <script> tags and run inline scripts separately
     const scriptRe = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
     const scripts = [];
     const htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent) {
@@ -358,7 +455,6 @@ async function loadModalContent(modalName = 'new') {
 
     container.innerHTML = htmlWithoutScripts.trim();
 
-    // Execute the collected inline scripts
     scripts.forEach(scriptContent => {
       try {
         const s = document.createElement('script');
@@ -372,7 +468,6 @@ async function loadModalContent(modalName = 'new') {
 
     container.setAttribute(cfg.loadedAttr, '1');
 
-    // Run initializers if present
     if (modalName === 'new') {
       if (typeof window.initNewApplicationScripts === 'function') {
         try { window.initNewApplicationScripts(); } catch (e) { console.warn('initNewApplicationScripts error', e); }
@@ -398,7 +493,6 @@ window.loadModalContentIfNeeded = loadModalContentIfNeeded;
 
 // ----------- VIEW MODAL OPEN (UPDATED to ensure full visibility) ----------
 async function openViewApplicationModal(appData) {
-  // Ensure modal HTML is loaded
   const ok = await loadModalContent('view');
   if (!ok) {
     alert('Failed to load view modal. Please refresh the page.');
@@ -411,22 +505,17 @@ async function openViewApplicationModal(appData) {
     return;
   }
 
-  // Show modal and add 'active' class (some modal scripts observe class changes)
   modal.style.display = 'block';
   modal.classList.add('active');
 
-  // Bring modal into viewport so user sees it (modal scrolls with page per your requirement)
-  // Slight timeout to allow layout to settle
   setTimeout(() => {
     try {
       modal.scrollIntoView({ behavior: 'auto', block: 'center' });
     } catch (e) {
-      // fallback: ensure top is visible
       try { window.scrollTo(0, 0); } catch (e2) {}
     }
   }, 40);
 
-  // Initialize modal with data if initializer exists
   if (typeof window.initViewApplicationModal === 'function') {
     try {
       window.initViewApplicationModal(appData);
@@ -436,7 +525,6 @@ async function openViewApplicationModal(appData) {
     }
   }
 
-  // Fallback: call viewApplication if available (older code path)
   if (typeof window.viewApplication === 'function' && appData && appData.appNumber) {
     try {
       window.viewApplication(appData.appNumber);
@@ -444,11 +532,6 @@ async function openViewApplicationModal(appData) {
       console.error('viewApplication fallback failed', e);
     }
   }
-}
-
-function closeModal() {
-  const modal = document.getElementById('newApplicationModal');
-  if (modal) modal.style.display = 'none';
 }
 
 function closeViewApplicationModal() {
@@ -469,74 +552,72 @@ async function loadApplications(sectionId, options = {}) {
   const status = map[sectionId];
   if (!status) return;
 
+  ensureSectionState(sectionId);
+  const state = sectionStates[sectionId];
+  state.requestId++;
+  const requestId = state.requestId;
+
   const tbody = document.getElementById(`${sectionId}-list`);
   if (!tbody) return;
 
   const isAuto = options.isAutoRefresh || false;
   if (options.showLoading !== false && !isAuto) {
+    // manual refresh: show section header spinner and light row placeholder
+    setSectionHeaderLoading(sectionId, true);
     tbody.innerHTML = `<tr><td colspan="5" class="loading">Loading applications...</td></tr>`;
   } else {
-    // For auto-refresh we do not replace the content or set aria-busy so there is no flicker.
-    if (!isAuto) {
+    // For auto-refresh we do not replace the content; set aria-busy for a subtle indicator
+    if (isAuto) {
       tbody.setAttribute('aria-busy','true');
-      tbody.style.opacity='0.7';
+    } else {
+      tbody.setAttribute('aria-busy','true'); tbody.style.opacity='0.7';
     }
   }
 
   try {
     const response = await window.apiService.getApplications(status, { showLoading: false });
-    // Remove temporary busy states only if we set them earlier
-    if (!isAuto) { tbody.removeAttribute('aria-busy'); tbody.style.opacity='1'; }
+    // If another newer request started, ignore this response
+    if (state.requestId !== requestId) {
+      return;
+    }
+
+    // Remove temporary busy states
+    tbody.removeAttribute('aria-busy'); tbody.style.opacity='1';
+    setSectionHeaderLoading(sectionId, false);
+
     if (response.success) {
-      // Quietly update table for auto refresh (populateTable will replace rows but without a loading placeholder)
-      populateTable(`${sectionId}-list`, response.data);
+      // Update table using diffing updater to avoid flicker
+      diffUpdateTable(`${sectionId}-list`, response.data || []);
     } else {
       if (!isAuto) tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${response.message}</td></tr>`;
       else console.warn('Auto-refresh error for', sectionId, response.message);
     }
   } catch (err) {
-    if (!isAuto) { tbody.removeAttribute('aria-busy'); tbody.style.opacity='1'; tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${err.message}</td></tr>`; }
+    // If another newer request started, ignore
+    if (state.requestId !== requestId) return;
+
+    if (!isAuto) { tbody.removeAttribute('aria-busy'); tbody.style.opacity='1'; tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${err.message}</td></tr>`; setSectionHeaderLoading(sectionId, false); }
     else console.error('Auto-refresh network error for', sectionId, err);
   }
 }
 
 function populateTable(tableId, applications) {
-  const tbody = document.querySelector(`#${tableId}`);
-  if (!tbody) { console.error('Table body not found', tableId); return; }
-  if (!applications || !applications.length) { tbody.innerHTML = `<tr><td colspan="5" class="no-data">No applications found</td></tr>`; return; }
-
-  const frag = document.createDocumentFragment();
-  applications.forEach(row => {
-    const tr = document.createElement('tr');
-
-    const tdApp = document.createElement('td'); tdApp.className='app-number';
-    const a = document.createElement('a'); a.href='javascript:void(0)'; a.className='app-number-link';
-    a.textContent = row.appNumber || ''; a.addEventListener('click', () => handleAppNumberClick(row.appNumber));
-    tdApp.appendChild(a); tr.appendChild(tdApp);
-
-    const tdName = document.createElement('td'); tdName.className='applicant-name'; tdName.textContent = row.applicantName || 'N/A'; tr.appendChild(tdName);
-    const tdAmount = document.createElement('td'); tdAmount.className='amount'; tdAmount.textContent = (row.amount==null?'0.00':Number(row.amount).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})); tr.appendChild(tdAmount);
-    const tdDate = document.createElement('td'); tdDate.className='date'; tdDate.textContent = row.date ? new Date(row.date).toLocaleDateString() : 'N/A'; tr.appendChild(tdDate);
-    const tdActionBy = document.createElement('td'); tdActionBy.className='action-by'; tdActionBy.textContent = row.actionBy || 'N/A'; tr.appendChild(tdActionBy);
-
-    frag.appendChild(tr);
-  });
-  tbody.replaceChildren(frag);
+  // Backwards-compatible wrapper that uses diffUpdateTable
+  diffUpdateTable(tableId, applications || []);
 }
 
-// Replace existing handleAppNumberClick with this implementation
+// handle clicking an application number — improved flow (load modal first so modal-local loader is used)
 async function handleAppNumberClick(appNumber) {
   if (!appNumber) { alert('Invalid application number'); return; }
   const userName = localStorage.getItem('loggedInName') || '';
 
-  // Ensure view modal HTML is loaded into the existing container first.
+  // Load modal HTML and show modal first (so showLoading uses modal-local loader)
   const loaded = await loadModalContent('view');
   if (!loaded) {
     alert('Failed to load view modal. Please refresh the page.');
     return;
   }
 
-  // Show the view modal (so showLoading will render a modal-local loader)
   const modal = document.getElementById('viewApplicationModal');
   if (!modal) {
     console.error('viewApplicationModal element not found');
@@ -545,22 +626,22 @@ async function handleAppNumberClick(appNumber) {
   modal.style.display = 'block';
   modal.classList.add('active');
 
-  // Use modal-local loader while we fetch details (showLoading detects the open view modal)
   showLoading('Loading application details...');
   try {
     const response = await window.apiService.getApplicationDetails(appNumber, userName);
     hideLoading();
-
     if (response && response.success && response.data) {
       const appData = response.data;
-      // Initialize the view modal with the data
-      // initViewApplicationModal is tolerant and will use the passed data
-      if (typeof initViewApplicationModal === 'function') {
-        try { initViewApplicationModal(appData); }
-        catch (e) { console.warn('initViewApplicationModal error', e); }
+      if (appData.status === 'NEW' && appData.completionStatus === 'DRAFT') {
+        const ok = await loadModalContent('new');
+        if (!ok) { alert('Failed to load form.'); return; }
+        if (typeof showNewApplicationModal === 'function') showNewApplicationModal(appNumber);
       } else {
-        // fallback to older path if needed
-        if (typeof viewApplication === 'function') viewApplication(appNumber);
+        if (typeof initViewApplicationModal === 'function') {
+          try { initViewApplicationModal(appData); } catch (e) { console.warn('initViewApplicationModal error', e); }
+        } else {
+          await openViewApplicationModal(appData);
+        }
       }
     } else {
       alert('Failed to load application: ' + (response?.message || 'Not found'));
@@ -573,6 +654,7 @@ async function handleAppNumberClick(appNumber) {
     closeViewApplicationModal();
   }
 }
+
 // ----------- BADGE & NOTIFICATION HELPERS ----------
 async function updateBadgeCounts() {
   try {
@@ -620,7 +702,6 @@ async function initializeAndRefreshTables() {
   refreshInterval = setInterval(async () => {
     const active = document.querySelector('.content-section.active')?.id;
     if (active) {
-      // background refresh (no UI flicker)
       await loadApplications(active, { showLoading: false, isAutoRefresh: true });
       await updateBadgeCounts();
       await updateUserNotificationBadge();
@@ -698,4 +779,3 @@ window.closeSuccessModal = closeSuccessModal;
 window.setLoggedInUser = setLoggedInUser;
 window.loadModalContent = loadModalContent;
 window.loadModalContentIfNeeded = loadModalContentIfNeeded;
-
