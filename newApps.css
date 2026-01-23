@@ -1,54 +1,39 @@
 /* ====== MODAL SYSTEM ====== */
-/* Modal Styles */
-#newApplicationModal {
+.modal {
   display: none;
   position: fixed;
-  z-index: 10000;
+  z-index: 1000;
   left: 0;
   top: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
   overflow: auto;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  background-color: rgba(0, 0, 0, 0.45);
+  transition: opacity 0.25s ease;
 }
 
-#newApplicationModal[style*="display: block"],
-#newApplicationModal.active {
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
+.modal.active {
+  display: block;
+  opacity: 1;
 }
 
-#newApplicationModal .modal-content {
+.modal-content {
   background-color: #fff;
-  margin: 40px auto;
-  padding: 0;
+  margin: 4% auto;
+  padding: 12px;
   border-radius: 8px;
-  width: 95%;
-  max-width: 900px;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-  transform: translateY(-20px);
-  transition: transform 0.3s ease;
+  width: 90%;
+  max-width: 800px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+  transform: translateY(-14px);
+  transition: transform 0.25s ease, opacity 0.25s ease;
 }
 
-#newApplicationModal[style*="display: block"] .modal-content,
-#newApplicationModal.active .modal-content {
+.modal.active .modal-content {
   transform: translateY(0);
 }
 
-/* Ensure the loan application modal is visible */
-.loan-application-modal {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  width: 100%;
-}
-#newApplicationModal .close-button {
+.close-button {
   color: #8b98a8;
   float: right;
   font-size: 20px;
@@ -56,53 +41,54 @@
   cursor: pointer;
 }
 
-#newApplicationModal .close-button:hover {
+.close-button:hover {
   color: #000;
 }
 
 /* ====== LOAN APPLICATION MODAL STYLES ====== */
-#newApplicationModal .loan-application-modal {
+/* slightly reduced base font-size and tighter spacing */
+.loan-application-modal {
   font-family: 'Inter', Arial, sans-serif;
   padding: 12px;
   background-color: #ffffff;
   border-radius: 10px;
   max-width: 800px;
   margin: 0 auto;
-  font-size: 13px;
+  font-size: 13px; /* reduced */
   line-height: 1.25;
 }
 
-#newApplicationModal .loan-application-modal h2 {
+.loan-application-modal h2 {
   margin-bottom: 10px;
   color: #1a1a1a;
-  font-size: 20px;
+  font-size: 20px; /* reduced from 24 */
   font-weight: 600;
   text-align: center;
 }
 
-#newApplicationModal .loan-application-modal h3 {
+.loan-application-modal h3 {
   margin-top: 12px;
   margin-bottom: 8px;
   color: #1a1a1a;
-  font-size: 15px;
+  font-size: 15px; /* reduced */
   font-weight: 600;
 }
 
-#newApplicationModal .loan-application-modal h4 {
+.loan-application-modal h4 {
   margin: 10px 0 6px 0;
   color: #1a1a1a;
-  font-size: 14px;
+  font-size: 14px; /* reduced */
   font-weight: 600;
 }
 
-#newApplicationModal .loan-application-modal h5 {
+.loan-application-modal h5 {
   margin: 10px 0 6px 0;
   color: #334155;
   font-size: 12.5px;
   font-weight: 600;
 }
 
-#newApplicationModal .loan-application-modal h6 {
+.loan-application-modal h6 {
   margin: 8px 0 6px 0;
   color: #475569;
   font-size: 12px;
@@ -110,11 +96,11 @@
 }
 
 /* ====== FORM ELEMENTS ====== */
-#newApplicationModal .loan-application-modal .form-group {
+.loan-application-modal .form-group {
   margin-bottom: 8px;
 }
 
-#newApplicationModal .loan-application-modal label {
+.loan-application-modal label {
   font-weight: 600;
   color: #4a4a4a;
   font-size: 13px;
@@ -122,9 +108,9 @@
   margin-bottom: 4px;
 }
 
-#newApplicationModal .loan-application-modal input,
-#newApplicationModal .loan-application-modal textarea,
-#newApplicationModal .loan-application-modal select {
+.loan-application-modal input,
+.loan-application-modal textarea,
+.loan-application-modal select {
   width: 100%;
   padding: 6px;
   border: 1px solid #e6e6e6;
@@ -133,22 +119,22 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-#newApplicationModal .loan-application-modal input:focus,
-#newApplicationModal .loan-application-modal textarea:focus,
-#newApplicationModal .loan-application-modal select:focus {
+.loan-application-modal input:focus,
+.loan-application-modal textarea:focus,
+.loan-application-modal select:focus {
   border-color: #007bff;
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.06);
   outline: none;
 }
 
-#newApplicationModal .loan-application-modal textarea {
+.loan-application-modal textarea {
   resize: vertical;
-  min-height: 64px;
+  min-height: 64px; /* slightly smaller */
   font-size: 13px;
 }
 
 /* ====== TAB SYSTEM ====== */
-#newApplicationModal .tab-navigation {
+.tab-navigation {
   display: flex;
   justify-content: space-between;
   margin-bottom: 12px;
@@ -158,7 +144,7 @@
   gap: 6px;
 }
 
-#newApplicationModal .tab-button {
+.tab-button {
   flex: 1;
   padding: 8px 6px;
   border: none;
@@ -172,29 +158,29 @@
   min-width: 0;
 }
 
-#newApplicationModal .tab-button.active {
+.tab-button.active {
   background-color: #007bff;
   color: white;
 }
 
-#newApplicationModal .tab-button:hover {
+.tab-button:hover {
   background-color: #eef2f6;
 }
 
-#newApplicationModal .tab-button.active:hover {
+.tab-button.active:hover {
   background-color: #0062d1;
 }
 
-#newApplicationModal .tab-content {
+.tab-content {
   display: none;
 }
 
-#newApplicationModal .tab-content.active {
+.tab-content.active {
   display: block;
 }
 
 /* ====== BUTTONS ====== */
-#newApplicationModal .loan-application-modal .add-button {
+.loan-application-modal .add-button {
   background-color: #007bff;
   color: white;
   padding: 6px 12px;
@@ -207,11 +193,11 @@
   transition: background-color 0.18s ease;
 }
 
-#newApplicationModal .loan-application-modal .add-button:hover {
+.loan-application-modal .add-button:hover {
   background-color: #0056b3;
 }
 
-#newApplicationModal .delete-button {
+.delete-button {
   background-color: #dc3545;
   color: white;
   padding: 6px 10px;
@@ -223,12 +209,12 @@
   transition: background-color 0.18s ease;
 }
 
-#newApplicationModal .delete-button:hover {
+.delete-button:hover {
   background-color: #a71d2a;
 }
 
 /* ====== TABLES ====== */
-#newApplicationModal .loan-application-modal table {
+.loan-application-modal table {
   width: 100%;
   border-collapse: collapse;
   background-color: #fff;
@@ -236,19 +222,19 @@
   font-size: 12.5px;
 }
 
-#newApplicationModal .loan-application-modal table,
-#newApplicationModal .loan-application-modal th,
-#newApplicationModal .loan-application-modal td {
+.loan-application-modal table,
+.loan-application-modal th,
+.loan-application-modal td {
   border: 1px solid #ececec;
 }
 
-#newApplicationModal .loan-application-modal th,
-#newApplicationModal .loan-application-modal td {
+.loan-application-modal th,
+.loan-application-modal td {
   padding: 6px;
   text-align: left;
 }
 
-#newApplicationModal .loan-application-modal th {
+.loan-application-modal th {
   background-color: #f8f9fa;
   font-weight: 700;
   color: #1a1a1a;
@@ -256,7 +242,7 @@
 }
 
 /* ====== TAB ACTIONS ====== */
-#newApplicationModal .tab-actions {
+.tab-actions {
   display: flex;
   justify-content: space-between;
   margin-top: 14px;
@@ -265,9 +251,7 @@
   gap: 8px;
 }
 
-#newApplicationModal .back-button, 
-#newApplicationModal .next-button, 
-#newApplicationModal .submit-button {
+.back-button, .next-button, .submit-button {
   padding: 8px 14px;
   border: none;
   border-radius: 6px;
@@ -277,35 +261,35 @@
   transition: background-color 0.18s ease;
 }
 
-#newApplicationModal .back-button {
+.back-button {
   background-color: #6c757d;
   color: white;
 }
 
-#newApplicationModal .back-button:hover {
+.back-button:hover {
   background-color: #5a6268;
 }
 
-#newApplicationModal .next-button {
+.next-button {
   background-color: #007bff;
   color: white;
 }
 
-#newApplicationModal .next-button:hover {
+.next-button:hover {
   background-color: #0056b3;
 }
 
-#newApplicationModal .submit-button {
+.submit-button {
   background-color: #4CAF50;
   color: white;
 }
 
-#newApplicationModal .submit-button:hover {
+.submit-button:hover {
   background-color: #45a049;
 }
 
 /* ====== LAYOUT COMPONENTS ====== */
-#newApplicationModal .compact-section {
+.compact-section {
   margin: 12px 0;
   padding: 12px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -314,7 +298,7 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
-#newApplicationModal .section-header-row {
+.section-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -324,57 +308,59 @@
 }
 
 /* ====== TWO COLUMN FLEX LAYOUT ====== */
-#newApplicationModal .two-column-flex {
+.two-column-flex {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 12px;
 }
 
-#newApplicationModal .two-column-flex .form-group {
+.two-column-flex .form-group {
   flex: 1 1 calc(50% - 12px);
   min-width: 200px;
 }
 
 /* ====== INLINE FORM GROUPS ====== */
-#newApplicationModal .form-group.inline-group {
+.form-group.inline-group {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-#newApplicationModal .form-group.inline-group label {
+.form-group.inline-group label {
   flex: 0 0 120px;
   text-align: right;
   margin-bottom: 0;
   font-size: 13px;
 }
 
-#newApplicationModal .form-group.inline-group .inline-input {
+.form-group.inline-group .inline-input {
   flex: 1;
   min-width: 0;
 }
 
 /* ====== REVIEW TAB STYLES ====== */
-#newApplicationModal .review-two-column {
+/* Two-column layout for review */
+.review-two-column {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 16px;
 }
 
-#newApplicationModal .review-two-column .inline-review-item {
+.review-two-column .inline-review-item {
   flex: 1 1 calc(50% - 16px);
   min-width: 250px;
 }
 
-#newApplicationModal .inline-review-item {
+/* Inline review items */
+.inline-review-item {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-#newApplicationModal .inline-label {
+.inline-label {
   flex: 0 0 140px;
   text-align: right;
   font-weight: 600;
@@ -382,7 +368,7 @@
   font-size: 13px;
 }
 
-#newApplicationModal .inline-value {
+.inline-value {
   flex: 1;
   min-width: 0;
   padding: 10px 12px;
@@ -393,7 +379,8 @@
   word-break: break-word;
 }
 
-#newApplicationModal .review-purpose-row {
+/* Full width row for review purpose */
+.review-purpose-row {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -401,12 +388,13 @@
   margin-bottom: 16px;
 }
 
-#newApplicationModal .review-purpose-row .inline-label {
+.review-purpose-row .inline-label {
   flex: 0 0 140px;
   text-align: right;
 }
 
-#newApplicationModal .review-section {
+/* Review sections */
+.review-section {
   margin: 16px 0;
   padding: 16px;
   background: #ffffff;
@@ -415,7 +403,7 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
-#newApplicationModal .compact-review {
+.compact-review {
   margin: 10px 0;
   padding: 12px;
   background: #fbfbfb;
@@ -423,7 +411,7 @@
   border: 1px solid #eaeaea;
 }
 
-#newApplicationModal .compact-review h5 {
+.compact-review h5 {
   color: #3b8b3b;
   margin-bottom: 12px;
   border-bottom: 2px solid #e6f3e6;
@@ -432,19 +420,20 @@
   font-weight: 600;
 }
 
-#newApplicationModal .review-item {
+/* Review items */
+.review-item {
   display: flex;
   margin-bottom: 8px;
 }
 
-#newApplicationModal .review-label {
+.review-label {
   font-weight: 700;
   min-width: 180px;
   font-size: 12.5px;
   color: #4a4a4a;
 }
 
-#newApplicationModal .review-value {
+.review-value {
   flex-grow: 1;
   padding: 10px 12px;
   background-color: #f8f8f8;
@@ -455,7 +444,8 @@
   line-height: 1.5;
 }
 
-#newApplicationModal .review-category {
+/* Review categories */
+.review-category {
   margin-bottom: 14px;
   background-color: white;
   padding: 14px;
@@ -464,11 +454,11 @@
   border: 1px solid #f0f0f0;
 }
 
-#newApplicationModal .compact-review-category {
+.compact-review-category {
   padding: 12px;
 }
 
-#newApplicationModal .category-title {
+.category-title {
   color: #3b8b3b;
   margin: 0 0 10px 0;
   font-size: 13px;
@@ -477,14 +467,15 @@
   padding-bottom: 6px;
 }
 
-#newApplicationModal .review-table {
+/* Review tables */
+.review-table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 12px;
   font-size: 13px;
 }
 
-#newApplicationModal .review-table th {
+.review-table th {
   background-color: #f2f2f2;
   text-align: left;
   padding: 10px;
@@ -493,23 +484,24 @@
   color: #4a4a4a;
 }
 
-#newApplicationModal .review-table td {
+.review-table td {
   padding: 10px;
   border: 1px solid #ddd;
   color: #1a1a1a;
 }
 
-#newApplicationModal .review-table tbody tr:hover {
+.review-table tbody tr:hover {
   background-color: #f9f9f9;
 }
 
-#newApplicationModal #review-uploads-list {
+/* Upload review list */
+#review-uploads-list {
   margin: 0;
   padding-left: 20px;
   list-style-type: none;
 }
 
-#newApplicationModal #review-uploads-list li {
+#review-uploads-list li {
   margin-bottom: 6px;
   padding: 8px 12px;
   background: #f8f9fa;
@@ -518,14 +510,15 @@
   font-size: 13px;
 }
 
-#newApplicationModal #review-uploads-list li:before {
+#review-uploads-list li:before {
   content: "✓";
   color: #4CAF50;
   font-weight: bold;
   margin-right: 8px;
 }
 
-#newApplicationModal .modal-footer {
+/* Modal footer for review tab */
+.modal-footer {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
@@ -534,7 +527,7 @@
   border-top: 1px solid #eaeaea;
 }
 
-#newApplicationModal .btn-outline {
+.btn-outline {
   background: white;
   color: #6c757d;
   border: 1px solid #6c757d;
@@ -546,11 +539,11 @@
   transition: all 0.18s ease;
 }
 
-#newApplicationModal .btn-outline:hover {
+.btn-outline:hover {
   background: #f8f9fa;
 }
 
-#newApplicationModal .btn-primary {
+.btn-primary {
   background-color: #4CAF50;
   color: white;
   padding: 10px 20px;
@@ -565,39 +558,39 @@
   gap: 8px;
 }
 
-#newApplicationModal .btn-primary:hover {
+.btn-primary:hover {
   background-color: #45a049;
 }
 
 /* ====== SCROLL CONTAINERS ====== */
-#newApplicationModal .table-container-scroll {
+.table-container-scroll {
   overflow-x: auto;
   margin: 8px 0;
   border-radius: 6px;
   border: 1px solid #eaeaea;
 }
 
-#newApplicationModal .table-container-scroll::-webkit-scrollbar {
+.table-container-scroll::-webkit-scrollbar {
   height: 6px;
   width: 6px;
 }
 
-#newApplicationModal .table-container-scroll::-webkit-scrollbar-track {
+.table-container-scroll::-webkit-scrollbar-track {
   background: rgba(15, 23, 42, 0.02);
   border-radius: 3px;
 }
 
-#newApplicationModal .table-container-scroll::-webkit-scrollbar-thumb {
+.table-container-scroll::-webkit-scrollbar-thumb {
   background: rgba(15, 23, 42, 0.09);
   border-radius: 3px;
 }
 
-#newApplicationModal .table-container-scroll::-webkit-scrollbar-thumb:hover {
+.table-container-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(15, 23, 42, 0.13);
 }
 
 /* ====== SPECIAL LABELS ====== */
-#newApplicationModal .income-label {
+.income-label {
   color: #2e7d32;
   font-weight: 700;
   padding: 4px;
@@ -607,7 +600,7 @@
   font-size: 12px;
 }
 
-#newApplicationModal .expense-label {
+.expense-label {
   color: #b91c1c;
   font-weight: 700;
   padding: 4px;
@@ -618,7 +611,7 @@
 }
 
 /* ====== MODAL HEADER ====== */
-#newApplicationModal .modal-header {
+.modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -628,14 +621,14 @@
   border-radius: 10px 10px 0 0;
 }
 
-#newApplicationModal .application-number {
+.application-number {
   font-size: 14px;
   font-weight: 800;
   color: #3b82f6;
   letter-spacing: 0.4px;
 }
 
-#newApplicationModal .application-applicant {
+.application-applicant {
   font-size: 13px;
   font-weight: 600;
   color: #334155;
@@ -643,93 +636,91 @@
 
 /* ====== RESPONSIVE DESIGN ====== */
 @media (max-width: 768px) {
-  #newApplicationModal .modal-content {
+  .modal-content {
     width: 95%;
     margin: 8% auto;
   }
   
-  #newApplicationModal .tab-navigation {
+  .tab-navigation {
     flex-direction: column;
   }
   
-  #newApplicationModal .tab-button {
+  .tab-button {
     min-width: 100%;
     margin-bottom: 6px;
   }
   
-  #newApplicationModal .two-column-flex .form-group {
+  .two-column-flex .form-group {
     flex: 1 1 100%;
   }
   
-  #newApplicationModal .review-two-column .inline-review-item {
+  .review-two-column .inline-review-item {
     flex: 1 1 100%;
   }
   
-  #newApplicationModal .form-group.inline-group {
+  .form-group.inline-group {
     flex-direction: column;
     align-items: stretch;
   }
   
-  #newApplicationModal .form-group.inline-group label {
+  .form-group.inline-group label {
     text-align: left;
     width: 100%;
     flex: none;
   }
   
-  #newApplicationModal .inline-review-item,
-  #newApplicationModal .review-purpose-row {
+  .inline-review-item,
+  .review-purpose-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
   
-  #newApplicationModal .inline-label {
+  .inline-label {
     text-align: left;
     flex: none;
   }
   
-  #newApplicationModal .review-label {
+  .review-label {
     min-width: 100%;
     margin-bottom: 4px;
   }
   
-  #newApplicationModal .review-item {
+  .review-item {
     flex-direction: column;
   }
   
-  #newApplicationModal .modal-footer {
+  .modal-footer {
     flex-direction: column;
   }
   
-  #newApplicationModal .modal-footer button {
+  .modal-footer button {
     width: 100%;
   }
 }
 
 @media (max-width: 480px) {
-  #newApplicationModal .loan-application-modal {
+  .loan-application-modal {
     padding: 10px;
   }
   
-  #newApplicationModal .compact-actions {
+  .compact-actions {
     flex-direction: column;
     gap: 8px;
   }
   
-  #newApplicationModal .back-button, 
-  #newApplicationModal .next-button, 
-  #newApplicationModal .submit-button {
+  .back-button, .next-button, .submit-button {
     width: 100%;
   }
   
-  #newApplicationModal .modal-header {
+  .modal-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
     padding: 10px;
   }
   
-  #newApplicationModal .modal-header .close-button {
+  .modal-header .close-button {
     position: absolute;
     top: 10px;
     right: 10px;
@@ -737,41 +728,40 @@
 }
 
 /* ====== CALCULATION ROWS ====== */
-#newApplicationModal .calculation-row {
+.calculation-row {
   font-weight: 700;
   background-color: #f6f7f8;
 }
 
 /* ====== EMPTY VALUE STYLING ====== */
-#newApplicationModal .empty-value {
+.empty-value {
   color: #8b98a8;
   font-style: italic;
   font-size: 12px;
 }
 
 /* ====== HIGHLIGHT VALUES ====== */
-#newApplicationModal .highlight-value {
+.highlight-value {
   font-weight: 700;
   color: #2c3e50;
 }
 
 /* ====== ADDITIONAL LAYOUT STYLES ====== */
-#newApplicationModal .section-header-row {
+.section-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
 
-#newApplicationModal .category-header-row {
+.category-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 6px;
 }
 
-#newApplicationModal .edit-section-btn, 
-#newApplicationModal .edit-category-btn {
+.edit-section-btn, .edit-category-btn {
   background: var(--primary-100);
   color: var(--primary-700);
   border: 1px solid var(--primary-300);
@@ -784,17 +774,16 @@
   gap: 4px;
 }
 
-#newApplicationModal .edit-section-btn:hover, 
-#newApplicationModal .edit-category-btn:hover {
+.edit-section-btn:hover, .edit-category-btn:hover {
   background: var(--primary-200);
 }
 
-#newApplicationModal .edit-category-btn {
+.edit-category-btn {
   padding: 2px 8px;
   font-size: 11px;
 }
 
-#newApplicationModal .status-badge {
+.status-badge {
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
@@ -803,37 +792,13 @@
   letter-spacing: 0.5px;
 }
 
-#newApplicationModal .status-new { 
-  background-color: #f0f9ff; 
-  color: #0369a1; 
-  border: 1px solid #bae6fd; 
-}
+.status-new { background-color: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; }
+.status-pending { background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.status-pending-approval { background-color: #e0f2fe; color: #0c4a6e; border: 1px solid #7dd3fc; }
+.status-approved { background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.status-reverted { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
-#newApplicationModal .status-pending { 
-  background-color: #fffbeb; 
-  color: #b45309; 
-  border: 1px solid #fde68a; 
-}
-
-#newApplicationModal .status-pending-approval { 
-  background-color: #e0f2fe; 
-  color: #0c4a6e; 
-  border: 1px solid #7dd3fc; 
-}
-
-#newApplicationModal .status-approved { 
-  background-color: #f0fdf4; 
-  color: #166534; 
-  border: 1px solid #bbf7d0; 
-}
-
-#newApplicationModal .status-reverted { 
-  background-color: #fef2f2; 
-  color: #991b1b; 
-  border: 1px solid #fecaca; 
-}
-
-#newApplicationModal .print-button {
+.print-button {
   background: var(--primary-600);
   color: white;
   border: none;
@@ -845,12 +810,12 @@
   gap: 6px;
 }
 
-#newApplicationModal .print-button:hover {
+.print-button:hover {
   background: var(--primary-700);
 }
 
 /* ====== UPLOAD SECTION STYLES ====== */
-#newApplicationModal .uploads-section {
+.uploads-section {
   margin: 16px 0;
   padding: 16px;
   background: #ffffff;
@@ -858,18 +823,18 @@
   border: 1px solid #eaeaea;
 }
 
-#newApplicationModal .upload-grid {
+.upload-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
   margin-top: 16px;
 }
 
-#newApplicationModal .reduced-upload-grid {
+.reduced-upload-grid {
   grid-template-columns: repeat(2, 1fr);
 }
 
-#newApplicationModal .upload-card {
+.upload-card {
   background: #f8f9fa;
   border: 1px solid #eaeaea;
   border-radius: 8px;
@@ -879,35 +844,35 @@
   transition: all 0.18s ease;
 }
 
-#newApplicationModal .upload-card:hover {
+.upload-card:hover {
   border-color: #007bff;
   box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
   transform: translateY(-2px);
 }
 
-#newApplicationModal .small-upload-card {
+.small-upload-card {
   padding: 12px;
 }
 
-#newApplicationModal .upload-icon {
+.upload-icon {
   font-size: 32px;
   color: #007bff;
   margin-bottom: 8px;
 }
 
-#newApplicationModal .upload-card h4 {
+.upload-card h4 {
   margin: 8px 0 4px 0;
   font-size: 14px;
   color: #1a1a1a;
 }
 
-#newApplicationModal .upload-card p {
+.upload-card p {
   font-size: 12px;
   color: #6b7280;
   margin-bottom: 8px;
 }
 
-#newApplicationModal .file-name {
+.file-name {
   font-size: 11px;
   color: #6b7280;
   display: block;
@@ -917,4 +882,3 @@
   border-radius: 4px;
   border: 1px dashed #e5e7eb;
 }
-
