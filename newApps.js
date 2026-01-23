@@ -1,5 +1,4 @@
-
-
+// newApps.js (updated) — lightweight loading indicator for "Add New Application" button
 console.log('newApps.js (cleaned) loaded');
 
 // ---- State ----
@@ -62,6 +61,25 @@ function isModalReady() {
   return modalContent && modalContent.hasChildNodes();
 }
 
+// ---- Add button lightweight loader helper ----
+function setAddAppButtonLoading(loading, text = 'Loading application...') {
+  const btn = document.querySelector('.add-app-btn');
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.prevHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${text}`;
+    btn.classList.add('loading-inline');
+  } else {
+    btn.disabled = false;
+    if (btn.dataset.prevHtml) {
+      btn.innerHTML = btn.dataset.prevHtml;
+      delete btn.dataset.prevHtml;
+    }
+    btn.classList.remove('loading-inline');
+  }
+}
+
 // ---- Show / Hide new application modal ----
 async function showNewApplicationModal(existingAppNumber = null) {
   console.log('showNewApplicationModal called with:', existingAppNumber);
@@ -84,15 +102,16 @@ async function showNewApplicationModal(existingAppNumber = null) {
   // Load content if not already loaded
   if (!isModalReady()) {
     try {
-      showLoading('Loading application form...');
+      // Use lightweight inline spinner on the Add button to avoid global overlay
+      setAddAppButtonLoading(true, 'Loading form...');
       const loaded = await loadModalContent('new'); // uses loader in Main.js
-      hideLoading();
+      setAddAppButtonLoading(false);
       if (!loaded) {
         alert('Failed to load application form.');
         return;
       }
     } catch (err) {
-      hideLoading();
+      setAddAppButtonLoading(false);
       alert('Error loading form: ' + (err && err.message ? err.message : err));
       return;
     }
@@ -112,9 +131,11 @@ async function showNewApplicationModal(existingAppNumber = null) {
     loadExistingApplication(existingAppNumber);
   } else {
     try {
-      showLoading('Preparing new application...');
+      // Use lightweight Add button indicator while requesting context rather than full-screen overlay
+      setAddAppButtonLoading(true, 'Preparing application...');
       const response = await window.apiService.getNewApplicationContext({ showLoading: false });
-      hideLoading();
+      setAddAppButtonLoading(false);
+
       if (response && response.success && response.data) {
         window.currentAppNumber = response.data.appNumber;
         window.currentAppFolderId = response.data.folderId;
@@ -125,7 +146,7 @@ async function showNewApplicationModal(existingAppNumber = null) {
         throw new Error(response?.message || 'Failed to get application context');
       }
     } catch (error) {
-      hideLoading();
+      setAddAppButtonLoading(false);
       console.error('Error in showNewApplicationModal:', error);
       alert('Error starting new application: ' + (error?.message || error));
     }
