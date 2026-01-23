@@ -26,17 +26,62 @@ function debounce(func, wait) {
   };
 }
 
+// showLoading/hideLoading now support a "modal-local" loader when the view modal is open.
+// If the view modal is visible the loader will be shown inside the modal (not full-screen).
 function showLoading(message = 'Processing...') {
-  const loadingEl = cachedElements['loading'];
-  if (loadingEl) {
-    const messageEl = loadingEl.querySelector('p');
-    if (messageEl) messageEl.textContent = message;
-    loadingEl.style.display = 'flex';
+  try {
+    const viewModal = document.getElementById('viewApplicationModal');
+    const isViewOpen = viewModal && (viewModal.style.display === 'block' || viewModal.classList.contains('active'));
+
+    if (isViewOpen) {
+      // modal-local loader
+      let local = document.getElementById('modal-local-loading');
+      if (!local) {
+        local = document.createElement('div');
+        local.id = 'modal-local-loading';
+        local.className = 'modal-local-loading';
+        const spinner = document.createElement('div');
+        spinner.className = 'spinner small';
+        const text = document.createElement('div');
+        text.className = 'modal-local-loading-text';
+        text.textContent = message;
+        local.appendChild(spinner);
+        local.appendChild(text);
+
+        const container = viewModal.querySelector('.modal-content') || viewModal;
+        container.style.position = container.style.position || 'relative';
+        container.appendChild(local);
+      } else {
+        const text = local.querySelector('.modal-local-loading-text');
+        if (text) text.textContent = message;
+        local.style.display = 'flex';
+      }
+      return;
+    }
+
+    // Fallback / global full-screen loader
+    const loadingEl = cachedElements['loading'];
+    if (loadingEl) {
+      const messageEl = loadingEl.querySelector('p');
+      if (messageEl) messageEl.textContent = message;
+      loadingEl.style.display = 'flex';
+    }
+  } catch (e) {
+    console.warn('showLoading error', e);
   }
 }
 function hideLoading() {
-  const loadingEl = cachedElements['loading'];
-  if (loadingEl) loadingEl.style.display = 'none';
+  try {
+    const local = document.getElementById('modal-local-loading');
+    if (local) {
+      local.style.display = 'none';
+      return;
+    }
+    const loadingEl = cachedElements['loading'];
+    if (loadingEl) loadingEl.style.display = 'none';
+  } catch (e) {
+    console.warn('hideLoading error', e);
+  }
 }
 function escapeHtml(s) {
   if (!s) return '';
@@ -64,10 +109,8 @@ function cacheElements() {
 
 // ----------- PAGE INIT -----------
 window.addEventListener('load', function() {
-  // clear any transient login data on a full load
-  localStorage.removeItem('loggedInName');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('userLevel');
+  // Do not clear logged-in user on full load — keep session across navigations.
+  // Only clear background intervals to avoid duplicates.
   clearIntervals();
 });
 
@@ -115,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       if (typeof showNewApplicationModal === 'function') {
-        showNewApplicationModal();
+        showNewApplicationModal(); // showNewApplicationModal handles its own lightweight UI indicators
       }
     });
   }
@@ -207,7 +250,6 @@ async function handleLoginFunction(name) {
 }
 
 // ----------- SINGLE MODAL LOADER (NO RECURSION) ----------
-/* REPLACE the loadModalContent function in Main.js with this improved version */
 async function loadModalContent(modalName = 'new') {
   console.log('loadModalContent called for', modalName);
   const cfg = modalName === 'view' ? {
@@ -284,7 +326,7 @@ async function loadModalContent(modalName = 'new') {
     // Generic path: extract body innerHTML but strip <script> tags and run inline scripts separately
     const scriptRe = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
     const scripts = [];
-    const htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent, offset, s) {
+    const htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent) {
       scripts.push(scriptContent);
       return '';
     });
@@ -401,17 +443,30 @@ async function loadApplications(sectionId, options = {}) {
   if (!tbody) return;
 
   const isAuto = options.isAutoRefresh || false;
-  if (options.showLoading !== false && !isAuto) tbody.innerHTML = `<tr><td colspan="5" class="loading">Loading applications...</td></tr>`;
-  else { tbody.setAttribute('aria-busy','true'); tbody.style.opacity='0.7'; }
+  if (options.showLoading !== false && !isAuto) {
+    tbody.innerHTML = `<tr><td colspan="5" class="loading">Loading applications...</td></tr>`;
+  } else {
+    // For auto-refresh we do not replace the content or set aria-busy so there is no flicker.
+    if (!isAuto) {
+      tbody.setAttribute('aria-busy','true');
+      tbody.style.opacity='0.7';
+    }
+  }
 
   try {
     const response = await window.apiService.getApplications(status, { showLoading: false });
-    tbody.removeAttribute('aria-busy'); tbody.style.opacity='1';
-    if (response.success) populateTable(`${sectionId}-list`, response.data);
-    else tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${response.message}</td></tr>`;
+    // Remove temporary busy states only if we set them earlier
+    if (!isAuto) { tbody.removeAttribute('aria-busy'); tbody.style.opacity='1'; }
+    if (response.success) {
+      // Quietly update table for auto refresh (populateTable will replace rows but without a loading placeholder)
+      populateTable(`${sectionId}-list`, response.data);
+    } else {
+      if (!isAuto) tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${response.message}</td></tr>`;
+      else console.warn('Auto-refresh error for', sectionId, response.message);
+    }
   } catch (err) {
-    tbody.removeAttribute('aria-busy'); tbody.style.opacity='1';
-    tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${err.message}</td></tr>`;
+    if (!isAuto) { tbody.removeAttribute('aria-busy'); tbody.style.opacity='1'; tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${err.message}</td></tr>`; }
+    else console.error('Auto-refresh network error for', sectionId, err);
   }
 }
 
@@ -514,6 +569,7 @@ async function initializeAndRefreshTables() {
   refreshInterval = setInterval(async () => {
     const active = document.querySelector('.content-section.active')?.id;
     if (active) {
+      // background refresh (no UI flicker)
       await loadApplications(active, { showLoading: false, isAutoRefresh: true });
       await updateBadgeCounts();
       await updateUserNotificationBadge();
@@ -591,4 +647,3 @@ window.closeSuccessModal = closeSuccessModal;
 window.setLoggedInUser = setLoggedInUser;
 window.loadModalContent = loadModalContent;
 window.loadModalContentIfNeeded = loadModalContentIfNeeded;
-
