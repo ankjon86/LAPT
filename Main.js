@@ -66,7 +66,7 @@ function showLoading(message = 'Processing...') {
     // Otherwise show a centered global loader modal appended to body
     let globalModal = document.getElementById('global-loading-modal');
     if (!globalModal) {
-      // backdrop
+      // backdrop + centered card
       globalModal = document.createElement('div');
       globalModal.id = 'global-loading-modal';
       globalModal.className = 'global-loading-modal';
@@ -82,13 +82,12 @@ function showLoading(message = 'Processing...') {
     const msgEl = globalModal.querySelector('.global-loading-message');
     if (msgEl) msgEl.textContent = message;
     globalModal.style.display = 'flex';
-    // prevent background scroll / interaction while modal loader is visible
     try { document.body.style.overflow = 'hidden'; } catch (e) {}
   } catch (e) {
-    // fallback: log and continue
     console.warn('showLoading error', e);
   }
 }
+
 function hideLoading() {
   try {
     // Hide modal-local loader if present
@@ -108,6 +107,7 @@ function hideLoading() {
     console.warn('hideLoading error', e);
   }
 }
+
 function escapeHtml(s) {
   if (!s) return '';
   return s.toString().replace(/[&<>"']/g, function(m){ 
@@ -141,7 +141,6 @@ function setSectionHeaderLoading(sectionId, isLoading) {
   }
 }
 
-// Create a table row element for an application (used both for initial render and for adding new rows)
 function createRowForApplication(app) {
   const tr = document.createElement('tr');
 
@@ -158,13 +157,11 @@ function createRowForApplication(app) {
   return tr;
 }
 
-// Diffing update: reuse existing rows when possible to reduce reflow/flicker.
-// We maintain order matching 'applications' array.
 function diffUpdateTable(tableId, applications) {
   const tbody = document.querySelector(`#${tableId}`);
   if (!tbody) return;
 
-  // Build map of existing rows keyed by appNumber
+  // Map existing rows by appNumber
   const existingRows = new Map();
   Array.from(tbody.children).forEach(row => {
     const anchor = row.querySelector('.app-number-link');
@@ -173,14 +170,11 @@ function diffUpdateTable(tableId, applications) {
   });
 
   const frag = document.createDocumentFragment();
-  const seenKeys = new Set();
 
   applications.forEach(app => {
     const key = app.appNumber || '';
-    seenKeys.add(key);
     const existing = existingRows.get(key);
     if (existing) {
-      // Update cells only if something changed (lightweight compare)
       const nameCell = existing.querySelector('.applicant-name');
       const amountCell = existing.querySelector('.amount');
       const dateCell = existing.querySelector('.date');
@@ -194,32 +188,23 @@ function diffUpdateTable(tableId, applications) {
       if ((dateCell && dateCell.textContent) !== formattedDate) { if (dateCell) dateCell.textContent = formattedDate; changed = true; }
       if ((actionByCell && actionByCell.textContent) !== (app.actionBy || 'N/A')) { if (actionByCell) actionByCell.textContent = app.actionBy || 'N/A'; changed = true; }
 
-      // Move existing row into the fragment (this preserves the DOM node, avoids recreation)
       frag.appendChild(existing);
 
       if (changed) {
-        // Visual highlight for updated rows
         existing.classList.remove('row-updated');
-        // trigger reflow then add class
         void existing.offsetWidth;
         existing.classList.add('row-updated');
-        // remove highlight after a short delay
         setTimeout(() => existing.classList.remove('row-updated'), 1400);
       }
     } else {
-      // Create new row
       const newRow = createRowForApplication(app);
-      // small entry animation
       newRow.classList.add('row-updated');
       frag.appendChild(newRow);
       setTimeout(() => newRow.classList.remove('row-updated'), 1400);
     }
   });
 
-  // Replace tbody children with the fragment — nodes moved above will be reused
   tbody.replaceChildren(frag);
-
-  // Remove any rows that were not in the new data (leftover rows already excluded because replaceChildren used only frag)
 }
 
 // ----------- PAGE INIT -----------
@@ -227,7 +212,7 @@ function cacheElements() {
   const elements = {
     'logged-in-user': 'logged-in-user',
     'current-date': 'current-date',
-    'loading': 'loading', // kept for backwards compat, not used by showLoading anymore
+    'loading': 'loading',
     'success-modal': 'success-modal',
     'success-message': 'success-message',
     'app-number': 'app-number',
@@ -262,7 +247,6 @@ document.addEventListener('DOMContentLoaded', function() {
     showLoginPage();
   }
 
-  // login form wiring
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
     loginForm.addEventListener('submit', async function(e) {
@@ -273,7 +257,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Add New Application button: use loadModalContent('new') and then showNewApplicationModal
   const addAppBtn = document.querySelector('.add-app-btn');
   if (addAppBtn) {
     addAppBtn.removeAttribute('onclick');
@@ -491,7 +474,7 @@ async function loadModalContentIfNeeded(modalName = 'new') { return await loadMo
 window.loadModalContent = loadModalContent;
 window.loadModalContentIfNeeded = loadModalContentIfNeeded;
 
-// ----------- VIEW MODAL OPEN (UPDATED to ensure full visibility) ----------
+// ----------- VIEW MODAL OPEN (UPDATED) ----------
 async function openViewApplicationModal(appData) {
   const ok = await loadModalContent('view');
   if (!ok) {
@@ -562,11 +545,9 @@ async function loadApplications(sectionId, options = {}) {
 
   const isAuto = options.isAutoRefresh || false;
   if (options.showLoading !== false && !isAuto) {
-    // manual refresh: show section header spinner and light row placeholder
     setSectionHeaderLoading(sectionId, true);
     tbody.innerHTML = `<tr><td colspan="5" class="loading">Loading applications...</td></tr>`;
   } else {
-    // For auto-refresh we do not replace the content; set aria-busy for a subtle indicator
     if (isAuto) {
       tbody.setAttribute('aria-busy','true');
     } else {
@@ -576,24 +557,18 @@ async function loadApplications(sectionId, options = {}) {
 
   try {
     const response = await window.apiService.getApplications(status, { showLoading: false });
-    // If another newer request started, ignore this response
-    if (state.requestId !== requestId) {
-      return;
-    }
+    if (state.requestId !== requestId) return;
 
-    // Remove temporary busy states
     tbody.removeAttribute('aria-busy'); tbody.style.opacity='1';
     setSectionHeaderLoading(sectionId, false);
 
     if (response.success) {
-      // Update table using diffing updater to avoid flicker
       diffUpdateTable(`${sectionId}-list`, response.data || []);
     } else {
       if (!isAuto) tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${response.message}</td></tr>`;
       else console.warn('Auto-refresh error for', sectionId, response.message);
     }
   } catch (err) {
-    // If another newer request started, ignore
     if (state.requestId !== requestId) return;
 
     if (!isAuto) { tbody.removeAttribute('aria-busy'); tbody.style.opacity='1'; tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${err.message}</td></tr>`; setSectionHeaderLoading(sectionId, false); }
@@ -601,8 +576,8 @@ async function loadApplications(sectionId, options = {}) {
   }
 }
 
+// Backwards compatible wrapper
 function populateTable(tableId, applications) {
-  // Backwards-compatible wrapper that uses diffUpdateTable
   diffUpdateTable(tableId, applications || []);
 }
 
@@ -626,9 +601,11 @@ async function handleAppNumberClick(appNumber) {
   modal.style.display = 'block';
   modal.classList.add('active');
 
+  // Request details without letting ApiService toggle the legacy overlay.
+  // We pass showLoading:false to apiService and use our modal-local showLoading instead.
   showLoading('Loading application details...');
   try {
-    const response = await window.apiService.getApplicationDetails(appNumber, userName);
+    const response = await window.apiService.getApplicationDetails(appNumber, userName, { showLoading: false });
     hideLoading();
     if (response && response.success && response.data) {
       const appData = response.data;
@@ -763,10 +740,12 @@ function showSuccessModal(message) { const el = cachedElements['success-message'
 function closeSuccessModal() { const sm = cachedElements['success-modal']; if (sm) sm.style.display='none'; }
 
 // ----------- EXPORTS ----------
-window.showSection = function(sectionId) {
+window.showSection = async function(sectionId) {
   if (restrictIfNotLoggedIn()) return;
   document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(sectionId); if (el) el.classList.add('active');
+  // Explicit manual refresh when a section is selected
+  await loadApplications(sectionId, { showLoading: true });
 };
 window.refreshApplications = refreshApplications;
 window.refreshUsersList = refreshUsersList;
