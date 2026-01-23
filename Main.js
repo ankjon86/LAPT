@@ -207,6 +207,7 @@ async function handleLoginFunction(name) {
 }
 
 // ----------- SINGLE MODAL LOADER (NO RECURSION) ----------
+/* REPLACE the loadModalContent function in Main.js with this improved version */
 async function loadModalContent(modalName = 'new') {
   console.log('loadModalContent called for', modalName);
   const cfg = modalName === 'view' ? {
@@ -234,15 +235,63 @@ async function loadModalContent(modalName = 'new') {
     if (!resp.ok) throw new Error(`Failed to fetch ${cfg.url}: ${resp.status}`);
     const html = await resp.text();
 
+    // Parse HTML so we can selectively inject only the inner modal content when needed
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // If the fetched file contains a top-level modal with id 'viewApplicationModal', extract its .modal-content
+    if (modalName === 'view') {
+      const fetchedModal = doc.getElementById('viewApplicationModal');
+      if (fetchedModal) {
+        const innerContent = fetchedModal.querySelector('.modal-content');
+        if (innerContent) {
+          // Remove any <script> nodes inside innerContent from the string version and collect scripts separately
+          const scripts = Array.from(innerContent.querySelectorAll('script'));
+          scripts.forEach(s => s.parentNode && s.parentNode.removeChild(s));
+          container.innerHTML = innerContent.innerHTML.trim();
+
+          // Execute inline scripts found anywhere in the fetched doc (including ones outside .modal-content)
+          const inlineScripts = Array.from(doc.querySelectorAll('script'));
+          inlineScripts.forEach(scriptEl => {
+            try {
+              const s = document.createElement('script');
+              if (scriptEl.src) {
+                // external script: append as src
+                s.src = scriptEl.src;
+                s.async = false;
+                document.body.appendChild(s);
+              } else {
+                s.type = 'text/javascript';
+                s.text = scriptEl.textContent;
+                document.body.appendChild(s);
+              }
+            } catch (e) {
+              console.warn('Error executing fetched script', e);
+            }
+          });
+
+          container.setAttribute(cfg.loadedAttr, '1');
+          // call init functions for view modal if they exist
+          if (typeof window.viewApplicationModalInit === 'function') {
+            try { window.viewApplicationModalInit(); } catch (e) { console.warn('viewApplicationModalInit error', e); }
+          }
+          return true;
+        }
+      }
+      // Fallback: no outer wrapper found — fall through to inject whole body (handled below)
+    }
+
+    // Generic path: extract body innerHTML but strip <script> tags and run inline scripts separately
     const scriptRe = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
     const scripts = [];
-    const htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent) {
+    const htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent, offset, s) {
       scripts.push(scriptContent);
       return '';
     });
 
     container.innerHTML = htmlWithoutScripts.trim();
 
+    // Execute the collected inline scripts
     scripts.forEach(scriptContent => {
       try {
         const s = document.createElement('script');
@@ -256,6 +305,7 @@ async function loadModalContent(modalName = 'new') {
 
     container.setAttribute(cfg.loadedAttr, '1');
 
+    // Run initializers if present
     if (modalName === 'new') {
       if (typeof window.initNewApplicationScripts === 'function') {
         try { window.initNewApplicationScripts(); } catch (e) { console.warn('initNewApplicationScripts error', e); }
@@ -541,3 +591,4 @@ window.closeSuccessModal = closeSuccessModal;
 window.setLoggedInUser = setLoggedInUser;
 window.loadModalContent = loadModalContent;
 window.loadModalContentIfNeeded = loadModalContentIfNeeded;
+
