@@ -1359,3 +1359,34 @@ body {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+/* Additions to Main.css to support table update animations and header spinners */
+
+/* Inline spinner for section header */
+.section-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gray-600);
+  font-size: 0.9rem;
+  margin-left: 8px;
+}
+.section-spinner .spinner-inline {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0,0,0,0.08);
+  border-top: 2px solid var(--primary-600);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Row updated highlight */
+.row-updated {
+  animation: highlight-row 1.2s ease;
+}
+
+/* gentle yellow fade for updated rows */
+@keyframes highlight-row {
+  0% { background: rgba(250, 244, 195, 0.95); }
+  40% { background: rgba(250, 244, 195, 0.6); }
+  100% { background: transparent; }
+}
