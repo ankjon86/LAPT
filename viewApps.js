@@ -1,3 +1,6 @@
+// viewApplicationJS.html - View Application Modal JavaScript (updated for scroll behavior
+// and "Edit" behavior: the view modal will close when Edit is clicked)
+
 console.log('viewApplicationJS loaded (scroll + edit changes)');
 
 let currentAppData = null;
@@ -81,12 +84,20 @@ function viewApplication(appNumber) {
 }
 
 function initViewApplicationModal(appData) {
+  // Make init tolerant: allow being called with no argument.
+  // If appData is not provided, try to use previously cached currentAppData.
+  // If neither is available, return quietly (don't log an error) — the modal will be initialized later.
   if (!appData) {
-    console.error('No application data provided');
-    return;
+    if (!currentAppData) {
+      // No data to initialize right now — return silently.
+      return;
+    }
+    appData = currentAppData;
   }
 
+  // store for later use
   currentAppData = appData || {};
+
   const appNumber = appData.appNumber || 'N/A';
   const applicantName = appData.applicantName || appData.name || 'N/A';
 
