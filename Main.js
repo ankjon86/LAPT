@@ -279,8 +279,9 @@ async function loadModalContentIfNeeded(modalName = 'new') { return await loadMo
 window.loadModalContent = loadModalContent;
 window.loadModalContentIfNeeded = loadModalContentIfNeeded;
 
-// ----------- VIEW MODAL OPEN ----------
+// ----------- VIEW MODAL OPEN (UPDATED to ensure full visibility) ----------
 async function openViewApplicationModal(appData) {
+  // Ensure modal HTML is loaded
   const ok = await loadModalContent('view');
   if (!ok) {
     alert('Failed to load view modal. Please refresh the page.');
@@ -288,21 +289,57 @@ async function openViewApplicationModal(appData) {
   }
 
   const modal = document.getElementById('viewApplicationModal');
-  if (modal) modal.style.display = 'block';
+  if (!modal) {
+    console.error('viewApplicationModal element not found');
+    return;
+  }
 
+  // Show modal and add 'active' class (some modal scripts observe class changes)
+  modal.style.display = 'block';
+  modal.classList.add('active');
+
+  // Bring modal into viewport so user sees it (modal scrolls with page per your requirement)
+  // Slight timeout to allow layout to settle
+  setTimeout(() => {
+    try {
+      modal.scrollIntoView({ behavior: 'auto', block: 'center' });
+    } catch (e) {
+      // fallback: ensure top is visible
+      try { window.scrollTo(0, 0); } catch (e2) {}
+    }
+  }, 40);
+
+  // Initialize modal with data if initializer exists
   if (typeof window.initViewApplicationModal === 'function') {
     try {
       window.initViewApplicationModal(appData);
       return;
     } catch (e) {
-      console.warn('initViewApplicationModal raised', e);
+      console.warn('initViewApplicationModal threw:', e);
     }
   }
 
+  // Fallback: call viewApplication if available (older code path)
   if (typeof window.viewApplication === 'function' && appData && appData.appNumber) {
-    try { window.viewApplication(appData.appNumber); } catch (e) { console.error('viewApplication fallback failed', e); }
+    try {
+      window.viewApplication(appData.appNumber);
+    } catch (e) {
+      console.error('viewApplication fallback failed', e);
+    }
   }
 }
+
+function closeViewApplicationModal() {
+  const modal = document.getElementById('viewApplicationModal');
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.remove('active');
+  }
+  try { document.body.style.overflow = ''; } catch (e) {}
+  currentViewingAppData = null;
+  sessionStorage.removeItem('currentViewingApp');
+}
+window.closeViewApplicationModal = closeViewApplicationModal;
 
 // ----------- LOAD APPLICATIONS / TABLES ----------
 async function loadApplications(sectionId, options = {}) {
