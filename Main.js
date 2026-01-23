@@ -1,4 +1,6 @@
-// Main.js — fixed modal loader (no recursion) and rest of app logic
+// Main.js — single modal loader implementation (no recursion) + app logic
+// NOTE: Replace the existing Main.js with this file and hard-refresh (Ctrl+F5).
+
 // ----------- CACHED ELEMENTS & VARIABLES -----------
 const cachedElements = {};
 let currentAppNumber = "";
@@ -25,7 +27,7 @@ function cacheElements() {
   }
 }
 
-// ----------- DEBOUNCE HELPERS -----------
+// ----------- HELPERS -----------
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
@@ -38,7 +40,85 @@ function debounce(func, wait) {
   };
 }
 
-// ----------- AUTH & LOGIN -----------
+function showLoading(message = 'Processing...') {
+  const loadingEl = cachedElements['loading'];
+  if (loadingEl) {
+    const messageEl = loadingEl.querySelector('p');
+    if (messageEl) messageEl.textContent = message;
+    loadingEl.style.display = 'flex';
+  }
+}
+function hideLoading() {
+  const loadingEl = cachedElements['loading'];
+  if (loadingEl) loadingEl.style.display = 'none';
+}
+function escapeHtml(s) {
+  if (!s) return '';
+  return s.toString().replace(/[&<>"']/g, function(m){ 
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; 
+  });
+}
+
+// ----------- PAGE INIT -----------
+window.addEventListener('load', function() {
+  // clear any transient login data on a full load
+  localStorage.removeItem('loggedInName');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userLevel');
+  clearIntervals();
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  cacheElements();
+  const cd = cachedElements['current-date'];
+  if (cd) {
+    cd.textContent = new Date().toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+
+  initializeBrowserNotifications();
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  const loggedInName = localStorage.getItem('loggedInName');
+  if (loggedInName) {
+    verifyUserOnLoad(loggedInName);
+  } else {
+    showLoginPage();
+  }
+
+  // login form wiring
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const name = (document.getElementById('login-name') || {}).value?.trim();
+      if (!name) { alert('Name is required!'); return; }
+      await handleLoginFunction(name);
+    });
+  }
+
+  // Add New Application button: use loadModalContent('new') and then showNewApplicationModal
+  const addAppBtn = document.querySelector('.add-app-btn');
+  if (addAppBtn) {
+    addAppBtn.removeAttribute('onclick');
+    addAppBtn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('Add New Application button clicked');
+      const ok = await loadModalContent('new');
+      if (!ok) {
+        alert('Failed to load application form. Please refresh the page.');
+        return;
+      }
+      if (typeof showNewApplicationModal === 'function') {
+        showNewApplicationModal();
+      }
+    });
+  }
+});
+
+// ----------- AUTH / SESSION ----------
 function showLoginPage() {
   document.body.classList.remove('logged-in');
   localStorage.removeItem('loggedInName');
@@ -51,95 +131,91 @@ function showDashboard() {
   document.body.classList.add('logged-in');
   const loggedInName = localStorage.getItem('loggedInName');
   const userRole = localStorage.getItem('userRole');
-  if (loggedInName) {
-    setLoggedInUser(loggedInName, userRole);
-  }
+  if (loggedInName) setLoggedInUser(loggedInName, userRole);
 }
 
 function setLoggedInUser(name, role = '') {
-  const userElement = cachedElements['logged-in-user'];
-  if (userElement) {
-    userElement.textContent = role ? `${name} (${role})` : name;
-  }
-  if (name) {
-    updateUserNotificationBadge();
-  }
+  const el = cachedElements['logged-in-user'];
+  if (el) el.textContent = role ? `${name} (${role})` : name;
+  if (name) updateUserNotificationBadge();
 }
 
 function logout() {
-  if (confirm('Are you sure you want to logout?')) {
-    localStorage.removeItem('loggedInName');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userLevel');
-    clearIntervals();
-    showLoginPage();
-  }
-}
-
-function restrictIfNotLoggedIn() {
-  const loggedInName = localStorage.getItem('loggedInName');
-  if (!loggedInName) {
-    showLoginPage();
-    return true;
-  }
-  return false;
-}
-
-// ----------- PAGE INITIALIZATION -----------
-function clearIntervals() {
-  if (notificationCheckInterval) clearInterval(notificationCheckInterval);
-  if (refreshInterval) clearInterval(refreshInterval);
-}
-
-window.addEventListener('load', function() {
+  if (!confirm('Are you sure you want to logout?')) return;
   localStorage.removeItem('loggedInName');
   localStorage.removeItem('userRole');
   localStorage.removeItem('userLevel');
   clearIntervals();
-});
+  showLoginPage();
+}
 
-document.addEventListener('DOMContentLoaded', function() {
-  cacheElements();
-  if (cachedElements['current-date']) {
-    cachedElements['current-date'].textContent = new Date().toLocaleDateString('en-US', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
-  }
-  
-  initializeBrowserNotifications();
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-  
+function restrictIfNotLoggedIn() {
   const loggedInName = localStorage.getItem('loggedInName');
-  if (loggedInName) {
-    verifyUserOnLoad(loggedInName);
-  } else {
+  if (!loggedInName) { showLoginPage(); return true; }
+  return false;
+}
+
+// simplified wrappers to keep stack safe
+async function verifyUserOnLoad(name) {
+  try {
+    const result = await window.apiService.login(name);
+    if (result.success) {
+      localStorage.setItem('userRole', result.user?.role || '');
+      localStorage.setItem('userLevel', result.user?.level || '');
+      setLoggedInUser(name, result.user?.role || '');
+      showDashboard();
+      document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+      const newSection = document.getElementById('new');
+      if (newSection) newSection.classList.add('active');
+      initializeAppCount();
+      initializeAndRefreshTables();
+    } else {
+      showLoginPage();
+    }
+  } catch (err) {
+    console.error('verifyUserOnLoad error', err);
     showLoginPage();
   }
-  
-  // Setup login form
-  const loginForm = document.getElementById('login-form');
-  if (loginForm) {
-    loginForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const name = document.getElementById('login-name').value.trim();
-      if (!name) {
-        alert('Name is required!');
-        return;
-      }
-      await handleLoginFunction(name);
-    });
-  }
-});
+}
 
-// ----------- MODAL HTML LOADER (single implementation, no recursion) -----------
+async function handleLoginFunction(name) {
+  try {
+    showLoading('Signing in...');
+    const response = await window.apiService.login(name);
+    hideLoading();
+    if (response.success) {
+      localStorage.setItem('loggedInName', name);
+      localStorage.setItem('userRole', response.user?.role || '');
+      localStorage.setItem('userLevel', response.user?.level || '');
+      setLoggedInUser(name, response.user?.role || '');
+      showDashboard();
+      document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+      const newSection = document.getElementById('new');
+      if (newSection) newSection.classList.add('active');
+      initializeAppCount();
+      initializeAndRefreshTables();
+    } else {
+      alert(response.message || 'Authentication failed');
+    }
+  } catch (err) {
+    hideLoading();
+    console.error('Login error', err);
+    alert('Login error: ' + (err && err.message ? err.message : err));
+  }
+}
+
+// ----------- SINGLE MODAL LOADER (FIX FOR RECURSION) ----------
 /*
   loadModalContent(modalName)
-  - modalName: 'new' | 'view'  (defaults to 'new')
-  Loads the corresponding HTML file into the designated container and executes inline <script> blocks.
-  Idempotent: if container already marked as loaded it will not refetch.
+  modalName: 'new' | 'view'
+  - Loads newApps.html into #newApplicationModalContent
+  - Loads viewApps.html into #viewApplicationModal .modal-content
+  - Executes inline <script> tags found in the loaded HTML so in-modal scripts initialize
+  - Idempotent: if container has data-loaded attribute it won't fetch again
 */
 async function loadModalContent(modalName = 'new') {
-  const config = modalName === 'view' ? {
+  console.log('loadModalContent called for', modalName);
+  const cfg = modalName === 'view' ? {
     url: 'viewApps.html',
     containerSelector: '#viewApplicationModal .modal-content',
     loadedAttr: 'data-view-loaded'
@@ -149,21 +225,23 @@ async function loadModalContent(modalName = 'new') {
     loadedAttr: 'data-new-loaded'
   };
 
-  const container = document.querySelector(config.containerSelector);
+  const container = document.querySelector(cfg.containerSelector);
   if (!container) {
-    console.error('Modal container not found for', modalName, config.containerSelector);
+    console.error('Modal container not found for', modalName, cfg.containerSelector);
     return false;
   }
 
-  // if already loaded, return true
-  if (container.getAttribute(config.loadedAttr) === '1') return true;
+  if (container.getAttribute(cfg.loadedAttr) === '1') {
+    // already loaded
+    return true;
+  }
 
   try {
-    const resp = await fetch(config.url, { cache: 'no-store' });
-    if (!resp.ok) throw new Error(`Failed to load ${config.url}: ${resp.status}`);
+    const resp = await fetch(cfg.url, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`Failed to fetch ${cfg.url}: ${resp.status}`);
     const html = await resp.text();
 
-    // Extract scripts and remove them from the HTML we inject
+    // extract scripts
     const scriptRe = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
     const scripts = [];
     const htmlWithoutScripts = html.replace(scriptRe, function(_, scriptContent) {
@@ -171,10 +249,9 @@ async function loadModalContent(modalName = 'new') {
       return '';
     });
 
-    // Inject HTML
     container.innerHTML = htmlWithoutScripts.trim();
 
-    // Execute inline scripts sequentially by creating script elements
+    // execute inline scripts sequentially
     scripts.forEach(scriptContent => {
       try {
         const s = document.createElement('script');
@@ -182,14 +259,13 @@ async function loadModalContent(modalName = 'new') {
         s.text = scriptContent;
         document.body.appendChild(s);
       } catch (e) {
-        console.error('Error executing inline script for', config.url, e);
+        console.error('Error executing modal inline script', e);
       }
     });
 
-    // Mark loaded to avoid re-fetch
-    container.setAttribute(config.loadedAttr, '1');
+    container.setAttribute(cfg.loadedAttr, '1');
 
-    // If modal exposes init functions, call them
+    // call common init if present
     if (modalName === 'new') {
       if (typeof window.initNewApplicationScripts === 'function') {
         try { window.initNewApplicationScripts(); } catch (e) { console.warn('initNewApplicationScripts error', e); }
@@ -203,537 +279,255 @@ async function loadModalContent(modalName = 'new') {
       }
     }
 
-    console.log(`Loaded modal content for ${modalName} from ${config.url}`);
     return true;
   } catch (err) {
-    console.error('loadModalContent error:', err);
+    console.error('loadModalContent failed', err);
     return false;
   }
 }
-// Expose loader globally (single function)
+
+// Backwards-compatible small wrapper name (safe)
+async function loadModalContentIfNeeded(modalName = 'new') {
+  // simple forwarder; no recursion
+  return await loadModalContent(modalName);
+}
+
+// expose loader
 window.loadModalContent = loadModalContent;
+window.loadModalContentIfNeeded = loadModalContentIfNeeded;
 
-// ----------- AUTH HELPERS -----------
-async function verifyUserOnLoad(loggedInName) {
-  try {
-    const authResult = await window.apiService.login(loggedInName);
-    if (authResult.success) {
-      localStorage.setItem('userRole', authResult.user?.role || '');
-      localStorage.setItem('userLevel', authResult.user?.level || '');
-      
-      setLoggedInUser(loggedInName, authResult.user?.role);
-      showDashboard();
-      
-      document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
-      const newSection = document.getElementById('new');
-      if (newSection) newSection.classList.add('active');
-      initializeAppCount();
-      initializeAndRefreshTables();
-    } else {
-      showLoginPage();
+// ----------- VIEW MODAL OPEN ----------
+async function openViewApplicationModal(appData) {
+  // make sure modal html loaded
+  const ok = await loadModalContent('view');
+  if (!ok) {
+    alert('Failed to load view modal. Please refresh the page.');
+    return;
+  }
+
+  // show modal (non-blocking)
+  const modal = document.getElementById('viewApplicationModal');
+  if (modal) modal.style.display = 'block';
+
+  // call view init function if available and pass appData
+  if (typeof window.initViewApplicationModal === 'function') {
+    try {
+      window.initViewApplicationModal(appData);
+      return;
+    } catch (e) {
+      console.warn('initViewApplicationModal raised', e);
     }
-  } catch (error) {
-    console.error('Verification error:', error);
-    showLoginPage();
   }
-}
 
-// ----------- LOGIN FUNCTION -----------
-async function handleLoginFunction(name) {
-  try {
-    showLoading();
-    const response = await window.apiService.login(name);
-    hideLoading();
-    if (response.success) {
-      handleSuccessfulLogin(name, response.user);
-    } else {
-      handleFailedLogin(response.message);
+  // fallback: if viewApplication exists and expects an app number, call it
+  if (typeof window.viewApplication === 'function' && appData && appData.appNumber) {
+    try {
+      window.viewApplication(appData.appNumber);
+    } catch (e) {
+      console.error('viewApplication fallback failed', e);
     }
-  } catch (error) {
-    hideLoading();
-    console.error('Login error details:', error);
-    alert('Login error: ' + error.message);
   }
 }
 
-function handleSuccessfulLogin(name, user) {
-  localStorage.setItem('loggedInName', name);
-  localStorage.setItem('userRole', user.role);
-  localStorage.setItem('userLevel', user.level);
-  
-  setLoggedInUser(name, user.role);
-  showDashboard();
-  
-  document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
-  const newSection = document.getElementById('new');
-  if (newSection) newSection.classList.add('active');
-  initializeAppCount();
-  initializeAndRefreshTables();
-  initializeBrowserNotifications();
-}
+// ----------- LOAD APPLICATIONS / TABLES ----------
+async function loadApplications(sectionId, options = {}) {
+  const map = { 'new': 'NEW','pending':'PENDING','pending-approvals':'PENDING_APPROVAL','approved':'APPROVED' };
+  const status = map[sectionId];
+  if (!status) return;
 
-function handleFailedLogin(message) {
-  alert(message || 'Authentication failed');
-  const loginName = document.getElementById('login-name');
-  if (loginName) {
-    loginName.value = '';
-    loginName.focus();
+  const tbody = document.getElementById(`${sectionId}-list`);
+  if (!tbody) return;
+
+  const isAuto = options.isAutoRefresh || false;
+  if (options.showLoading !== false && !isAuto) tbody.innerHTML = `<tr><td colspan="5" class="loading">Loading applications...</td></tr>`;
+  else { tbody.setAttribute('aria-busy','true'); tbody.style.opacity='0.7'; }
+
+  try {
+    const response = await window.apiService.getApplications(status, { showLoading: false });
+    tbody.removeAttribute('aria-busy'); tbody.style.opacity='1';
+    if (response.success) populateTable(`${sectionId}-list`, response.data);
+    else tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${response.message}</td></tr>`;
+  } catch (err) {
+    tbody.removeAttribute('aria-busy'); tbody.style.opacity='1';
+    tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${err.message}</td></tr>`;
   }
-}
-
-// ----------- SECTION NAVIGATION -----------
-const debouncedShowSection = debounce(function(sectionId) {
-  if (restrictIfNotLoggedIn()) return;
-  document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
-  const target = document.getElementById(sectionId);
-  if (target) target.classList.add('active');
-  document.querySelectorAll('.menu-btn').forEach(btn => btn.classList.remove('active'));
-  const activeBtn = document.querySelector(`.menu-btn[onclick*="showSection('${sectionId}')"]`);
-  if (activeBtn) activeBtn.classList.add('active');
-  
-  if (sectionId === 'users-list') refreshUsersList();
-}, 150);
-
-function showSection(sectionId) { 
-  debouncedShowSection(sectionId); 
-}
-
-// ----------- APPLICATION HELPERS & TABLES -----------
-function updateBadgeCount(status, count) {
-  const badgeElement = document.getElementById(status + '-count');
-  if (badgeElement) {
-    badgeElement.textContent = count;
-    badgeElement.style.display = count > 0 ? 'inline-block' : 'none';
-  }
-}
-
-const format = {
-  date: date => date ? new Date(date).toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'}) : '',
-  currency: amount => {
-    if (amount === null || amount === undefined) return '0.00';
-    const num = parseFloat(amount);
-    return isNaN(num) ? '0.00' : num.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-  }
-};
-
-function showLoading(message = 'Processing...') {
-  const loadingEl = cachedElements['loading'];
-  if (loadingEl) {
-    const messageEl = loadingEl.querySelector('p');
-    if (messageEl) messageEl.textContent = message;
-    loadingEl.style.display = 'flex';
-  }
-}
-
-function hideLoading() {
-  const loadingEl = cachedElements['loading'];
-  if (loadingEl) loadingEl.style.display = 'none';
 }
 
 function populateTable(tableId, applications) {
   const tbody = document.querySelector(`#${tableId}`);
-  if (!tbody) {
-    console.error(`Table body not found: ${tableId}`);
-    return;
-  }
+  if (!tbody) { console.error('Table body not found', tableId); return; }
+  if (!applications || !applications.length) { tbody.innerHTML = `<tr><td colspan="5" class="no-data">No applications found</td></tr>`; return; }
 
-  if (!applications || !applications.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="no-data">No applications found</td></tr>`;
-    return;
-  }
-
-  const fragment = document.createDocumentFragment();
+  const frag = document.createDocumentFragment();
   applications.forEach(row => {
-    const appNumber = row.appNumber || '';
     const tr = document.createElement('tr');
 
-    const tdApp = document.createElement('td');
-    tdApp.className = 'app-number';
-    const a = document.createElement('a');
-    a.href = 'javascript:void(0)';
-    a.className = 'app-number-link';
-    a.textContent = appNumber;
-    a.addEventListener('click', function() { handleAppNumberClick(appNumber); });
-    tdApp.appendChild(a);
-    tr.appendChild(tdApp);
+    const tdApp = document.createElement('td'); tdApp.className='app-number';
+    const a = document.createElement('a'); a.href='javascript:void(0)'; a.className='app-number-link';
+    a.textContent = row.appNumber || ''; a.addEventListener('click', () => handleAppNumberClick(row.appNumber));
+    tdApp.appendChild(a); tr.appendChild(tdApp);
 
-    const tdName = document.createElement('td');
-    tdName.className = 'applicant-name';
-    tdName.textContent = row.applicantName || 'N/A';
-    tr.appendChild(tdName);
+    const tdName = document.createElement('td'); tdName.className='applicant-name'; tdName.textContent = row.applicantName || 'N/A'; tr.appendChild(tdName);
+    const tdAmount = document.createElement('td'); tdAmount.className='amount'; tdAmount.textContent = (row.amount==null?'0.00':Number(row.amount).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})); tr.appendChild(tdAmount);
+    const tdDate = document.createElement('td'); tdDate.className='date'; tdDate.textContent = row.date ? new Date(row.date).toLocaleDateString() : 'N/A'; tr.appendChild(tdDate);
+    const tdActionBy = document.createElement('td'); tdActionBy.className='action-by'; tdActionBy.textContent = row.actionBy || 'N/A'; tr.appendChild(tdActionBy);
 
-    const tdAmount = document.createElement('td');
-    tdAmount.className = 'amount';
-    tdAmount.textContent = format.currency(row.amount);
-    tr.appendChild(tdAmount);
-
-    const tdDate = document.createElement('td');
-    tdDate.className = 'date';
-    tdDate.textContent = row.date ? format.date(row.date) : 'N/A';
-    tr.appendChild(tdDate);
-
-    const tdActionBy = document.createElement('td');
-    tdActionBy.className = 'action-by';
-    tdActionBy.textContent = row.actionBy || 'N/A';
-    tr.appendChild(tdActionBy);
-
-    fragment.appendChild(tr);
+    frag.appendChild(tr);
   });
-
-  tbody.replaceChildren(fragment);
+  tbody.replaceChildren(frag);
 }
 
-// ----------- APPLICATION CLICK HANDLER -----------
+// handle clicking an application number
 async function handleAppNumberClick(appNumber) {
-  if (!appNumber || appNumber === 'undefined' || appNumber === 'null') {
-    alert('Error: Invalid application number');
-    return;
-  }
-  
-  const userName = localStorage.getItem('loggedInName');
-  showLoading();
-  
+  if (!appNumber) { alert('Invalid application number'); return; }
+  const userName = localStorage.getItem('loggedInName') || '';
+
+  showLoading('Loading application details...');
   try {
     const response = await window.apiService.getApplicationDetails(appNumber, userName);
     hideLoading();
-    
-    if (response.success && response.data) {
+    if (response && response.success && response.data) {
       const appData = response.data;
-      
+      // If it's a draft NEW, open edit modal; otherwise open view modal
       if (appData.status === 'NEW' && appData.completionStatus === 'DRAFT') {
-        // open edit modal (new)
         const ok = await loadModalContent('new');
-        if (!ok) { alert('Failed to load application form'); return; }
+        if (!ok) { alert('Failed to load form.'); return; }
         if (typeof showNewApplicationModal === 'function') showNewApplicationModal(appNumber);
       } else {
-        // open view modal
-        const ok = await loadModalContent('view');
-        if (!ok) { alert('Failed to load view modal'); return; }
-        if (typeof window.initViewApplicationModal === 'function') {
-          window.initViewApplicationModal(response.data);
-        } else if (typeof window.viewApplication === 'function') {
-          window.viewApplication(appNumber);
-        } else {
-          // fallback show modal
-          const modal = document.getElementById('viewApplicationModal');
-          if (modal) modal.style.display = 'block';
-        }
+        // open view modal and pass appData
+        await openViewApplicationModal(appData);
       }
     } else {
-      alert('Failed to load application: ' + (response?.message || 'Application not found'));
+      alert('Failed to load application: ' + (response?.message || 'Not found'));
     }
-  } catch (error) {
+  } catch (err) {
     hideLoading();
-    console.error('Error loading application details:', error);
-    alert('Error loading application details: ' + (error?.message || error));
+    console.error('Error loading application details', err);
+    alert('Error loading application details: ' + (err && err.message ? err.message : err));
   }
 }
 
-// ----------- LOAD APPLICATIONS -----------
-async function loadApplications(sectionId, options = {}) {
-  const sectionMap = {
-    'new': 'NEW',
-    'pending': 'PENDING',
-    'pending-approvals': 'PENDING_APPROVAL',
-    'approved': 'APPROVED'
-  };
-  
-  const status = sectionMap[sectionId];
-  if (!status) return;
-  
-  const tbody = document.getElementById(`${sectionId}-list`);
-  if (!tbody) return;
-  
-  const isAutoRefresh = options.isAutoRefresh || false;
-  
-  if (options.showLoading !== false && !isAutoRefresh) {
-    tbody.innerHTML = `<tr><td colspan="5" class="loading">Loading applications...</td></tr>`;
-  } else {
-    tbody.setAttribute('aria-busy', 'true');
-    tbody.style.opacity = '0.7';
-  }
-  
-  try {
-    const response = await window.apiService.getApplications(status, {
-      showLoading: false
-    });
-    
-    tbody.removeAttribute('aria-busy');
-    tbody.style.opacity = '1';
-    
-    if (response.success) {
-      populateTable(`${sectionId}-list`, response.data);
-    } else {
-      tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${response.message}</td></tr>`;
-    }
-  } catch (error) {
-    tbody.removeAttribute('aria-busy');
-    tbody.style.opacity = '1';
-    tbody.innerHTML = `<tr><td colspan="5" class="error">Error: ${error.message}</td></tr>`;
-  }
-}
-
-// ----------- BADGES, NOTIFICATIONS & USER MANAGEMENT (unchanged) -----------
+// ----------- BADGE & NOTIFICATION HELPERS ----------
 async function updateBadgeCounts() {
   try {
-    const response = await window.apiService.getApplicationCounts();
-    if (response.success && response.data) {
-      const counts = response.data;
-      updateBadgeCount('new', counts.new || 0);
-      updateBadgeCount('pending', counts.pending || 0);
-      updateBadgeCount('pending-approvals', counts.pendingApprovals || 0);
-      updateBadgeCount('approved', counts.approved || 0);
+    const resp = await window.apiService.getApplicationCounts();
+    if (resp.success && resp.data) {
+      updateCount('new', resp.data.new || 0);
+      updateCount('pending', resp.data.pending || 0);
+      updateCount('pending-approvals', resp.data.pendingApprovals || 0);
+      updateCount('approved', resp.data.approved || 0);
     }
-  } catch (error) {
-    console.error('Error updating badge counts:', error);
-  }
+  } catch (e) { console.error('updateBadgeCounts error', e); }
+}
+function updateCount(id, n) {
+  const el = document.getElementById(id + '-count');
+  if (!el) return;
+  el.textContent = n; el.style.display = n > 0 ? 'inline-block' : 'none';
 }
 
 async function updateUserNotificationBadge() {
-  const userName = localStorage.getItem('loggedInName');
-  if (!userName) return;
-  
+  const userName = localStorage.getItem('loggedInName'); if (!userName) return;
   try {
-    const response = await window.apiService.getApplicationCountsForUser(userName);
-    const count = response.count || 0;
+    const res = await window.apiService.getApplicationCountsForUser(userName);
+    const count = res.count || 0;
     const badge = document.getElementById('user-notification-badge');
-    if (badge) {
-      if (count > 0) {
-        badge.textContent = count > 99 ? '99+' : count;
-        badge.style.display = 'flex';
-      } else {
-        badge.style.display = 'none';
-      }
-    }
-  } catch (error) {
-    console.error('Error updating badge:', error);
-  }
+    if (badge) { if (count>0) { badge.textContent = count>99?'99+':count; badge.style.display='flex'; } else badge.style.display='none'; }
+  } catch (e) { console.error('updateUserNotificationBadge', e); }
 }
 
-const debouncedRefreshApplications = debounce(async function(isAutoRefresh = false) {
+const debouncedRefreshApplications = debounce(async (isAuto=false) => {
   const activeSection = document.querySelector('.content-section.active')?.id;
-  if (activeSection && activeSection !== 'new-application') {
-    await loadApplications(activeSection, { 
-      showLoading: !isAutoRefresh,
-      isAutoRefresh: isAutoRefresh 
-    });
+  if (activeSection) {
+    await loadApplications(activeSection, { showLoading: !isAuto, isAutoRefresh: isAuto });
     await updateBadgeCounts();
     await updateUserNotificationBadge();
   }
 }, 300);
 
-function refreshApplications() { 
-  debouncedRefreshApplications(false);
-}
+function refreshApplications() { debouncedRefreshApplications(false); }
 
 async function initializeAndRefreshTables() {
   await loadApplications('new', { showLoading: true });
   await updateBadgeCounts();
   await updateUserNotificationBadge();
-  
   if (refreshInterval) clearInterval(refreshInterval);
   refreshInterval = setInterval(async () => {
-    const activeSection = document.querySelector('.content-section.active')?.id;
-    if (activeSection && activeSection !== 'new-application') {
-      await loadApplications(activeSection, { 
-        showLoading: false,
-        isAutoRefresh: true 
-      });
+    const active = document.querySelector('.content-section.active')?.id;
+    if (active) {
+      await loadApplications(active, { showLoading: false, isAutoRefresh: true });
       await updateBadgeCounts();
       await updateUserNotificationBadge();
     }
   }, 60000);
 }
 
-// USER management functions (kept same as before)
+// ----------- USER MANAGEMENT (minimal) ----------
 async function getAllUsersHandler() {
   try {
-    const response = await window.apiService.getAllUsers();
-    const users = response.data || [];
+    const r = await window.apiService.getAllUsers();
+    const users = r.data || [];
     const tbody = document.getElementById('users-list-body');
     if (!tbody) return;
-    if (!users.length) {
-      tbody.innerHTML = `<tr><td colspan="4" class="no-data">No users found</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = users.map(user => `
-      <tr>
-        <td>${escapeHtml(user.name)}</td>
-        <td>${escapeHtml(user.level)}</td>
-        <td>${escapeHtml(user.role)}</td>
-        <td class="actions">
-          <button class="btn-icon btn-delete" title="Delete" onclick="deleteUser('${escapeHtml(user.name)}')">
-            <i class="fas fa-trash"></i>
-          </button>
-        </td>
-      </tr>
-    `).join('');
-  } catch (error) {
-    console.error('Error loading users:', error);
-    const tbody = document.getElementById('users-list-body');
-    if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="4" class="error">Error loading users</td></tr>`;
-    }
-  }
+    if (!users.length) { tbody.innerHTML = `<tr><td colspan="4" class="no-data">No users found</td></tr>`; return; }
+    tbody.innerHTML = users.map(u => `<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.level)}</td><td>${escapeHtml(u.role)}</td><td class="actions"><button class="btn-icon btn-delete" onclick="deleteUser('${escapeHtml(u.name)}')"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+  } catch (e) { console.error('getAllUsersHandler', e); const tbody = document.getElementById('users-list-body'); if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="error">Error loading users</td></tr>`; }
 }
 function refreshUsersList() { getAllUsersHandler(); }
 async function populateUsersTable() { await getAllUsersHandler(); }
 
-document.addEventListener('DOMContentLoaded', function() {
-  const addUserForm = document.getElementById('add-user-form');
-  if (addUserForm) {
-    addUserForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const name = document.getElementById('new-user-name')?.value.trim();
-      const level = document.getElementById('new-user-level')?.value;
-      const role = document.getElementById('new-user-role')?.value;
-      
-      if (!name || !level || !role) {
-        alert('Please fill all fields!');
-        return;
-      }
-      
-      try {
-        const response = await window.apiService.addUser({ name, level, role });
-        if (response.success) {
-          showSuccessModal(response.message || 'User added!');
-          showSection('users-list');
-          refreshUsersList();
-        } else {
-          alert('Error: ' + response.message);
-        }
-      } catch (error) {
-        alert('Error adding user: ' + error.message);
-      }
-    });
-  }
-});
-
-// ----------- SUCCESS MODAL & UTILITIES -----------
-function showSuccessModal(message) {
-  if (cachedElements['success-message']) cachedElements['success-message'].textContent = message;
-  if (cachedElements['success-modal']) cachedElements['success-modal'].style.display = 'flex';
-}
-function closeSuccessModal() {
-  if (cachedElements['success-modal']) cachedElements['success-modal'].style.display = 'none';
-}
-function escapeHtml(s) {
-  if (!s) return '';
-  return s.toString().replace(/[&<>"']/g, function(m){ 
-    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; 
-  });
-}
-
-// ----------- BROWSER NOTIFICATIONS -----------
+// ----------- NOTIFICATION helpers ----------
 function initializeBrowserNotifications() {
-  if (!("Notification" in window)) return;
-  
-  switch (Notification.permission) {
-    case "granted":
-      setupNotificationListener(); 
-      break;
-    case "denied":
-      break;
-    case "default":
-      Notification.requestPermission().then(permission => {
-        if (permission === "granted") setupNotificationListener();
-      });
-      break;
-  }
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') setupNotificationListener();
+  else if (Notification.permission === 'default') Notification.requestPermission().then(p => { if (p==='granted') setupNotificationListener(); });
 }
 function setupNotificationListener() {
   if (notificationCheckInterval) clearInterval(notificationCheckInterval);
-  notificationCheckInterval = setInterval(function() { checkForNewApplications(); }, 30000);
+  notificationCheckInterval = setInterval(() => { checkForNewApplications(); }, 30000);
 }
 async function checkForNewApplications() {
-  const userName = localStorage.getItem('loggedInName');
-  if (!userName || document.visibilityState === 'visible') return;
+  const user = localStorage.getItem('loggedInName'); if (!user || document.visibilityState === 'visible') return;
   try {
-    const response = await window.apiService.getApplicationCountsForUser(userName);
-    const currentCount = response.count || 0;
-    const previousCount = lastAppCount;
-    lastAppCount = currentCount;
-    if (currentCount > previousCount && previousCount > 0) {
-      const newCount = currentCount - previousCount;
-      const userRole = localStorage.getItem('userRole') || '';
-      showApplicationNotification(userName, userRole, newCount);
+    const r = await window.apiService.getApplicationCountsForUser(user);
+    const current = r.count || 0; const previous = lastAppCount; lastAppCount = current;
+    if (current > previous && previous > 0) {
+      const newCount = current - previous; const role = localStorage.getItem('userRole') || '';
+      if (Notification.permission === 'granted') {
+        const n = new Notification('New Application Assignment', { body: `${user} have ${newCount} application(s) for your action${role?` as ${role}`:''}`, icon: 'https://img.icons8.com/color/192/000000/loan.png' });
+        n.onclick = () => { window.focus(); n.close(); refreshApplications(); };
+        setTimeout(()=>n.close(), 10000);
+      }
     }
-  } catch (error) {
-    console.error('Error checking applications:', error);
-  }
+  } catch (e) { console.error('checkForNewApplications', e); }
 }
-function showApplicationNotification(userName, userRole, count) {
-  if (Notification.permission === "granted" && document.visibilityState !== 'visible') {
-    const notification = new Notification("New Application Assignment", {
-      body: `${userName} have ${count} application(s) for your action${userRole ? ` as ${userRole}` : ''}`,
-      icon: "https://img.icons8.com/color/192/000000/loan.png",
-      tag: "loan-application",
-      requireInteraction: true
-    });
-    notification.onclick = function() {
-      window.focus();
-      notification.close();
-      refreshApplications();
-    };
-    setTimeout(() => { notification.close(); }, 10000);
-  }
-}
+
 function handleVisibilityChange() {
-  if (document.visibilityState === 'visible') {
-    refreshApplications();
-    updateUserNotificationBadge();
-  } else {
-    const userName = localStorage.getItem('loggedInName');
-    if (userName) {
-      window.apiService.getApplicationCountsForUser(userName)
-        .then(response => { lastAppCount = response.count || 0; })
-        .catch(error => console.error('Error getting app count:', error));
-    }
-  }
+  if (document.visibilityState === 'visible') { refreshApplications(); updateUserNotificationBadge(); }
+  else { const u = localStorage.getItem('loggedInName'); if (u) window.apiService.getApplicationCountsForUser(u).then(r => lastAppCount = r.count || 0).catch(() => {}); }
 }
 async function initializeAppCount() {
-  const userName = localStorage.getItem('loggedInName');
-  if (userName) {
-    try {
-      const response = await window.apiService.getApplicationCountsForUser(userName);
-      lastAppCount = response.count || 0;
-    } catch (error) {
-      console.error('Error initializing app count:', error);
-    }
-  }
+  const u = localStorage.getItem('loggedInName'); if (!u) return;
+  try { const r = await window.apiService.getApplicationCountsForUser(u); lastAppCount = r.count || 0; } catch (e) { console.error('initializeAppCount', e); }
 }
 
-// ----------- EVENT LISTENERS (Add New Application wiring) -----------
-document.addEventListener('DOMContentLoaded', function() {
-  const addAppBtn = document.querySelector('.add-app-btn');
-  if (addAppBtn) {
-    addAppBtn.removeAttribute('onclick');
-    addAppBtn.addEventListener('click', async function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      const ok = await loadModalContent('new');
-      if (!ok) { alert('Failed to load application form'); return; }
-      if (typeof showNewApplicationModal === 'function') {
-        showNewApplicationModal();
-      }
-    });
-  }
-});
+// ----------- SUCCESS MODAL ----------
+function showSuccessModal(message) { const el = cachedElements['success-message']; if (el) el.textContent = message; const sm = cachedElements['success-modal']; if (sm) sm.style.display='flex'; }
+function closeSuccessModal() { const sm = cachedElements['success-modal']; if (sm) sm.style.display='none'; }
 
-// ----------- GLOBAL EXPORTS -----------
-window.showSection = showSection;
+// ----------- EXPORTS ----------
+window.showSection = function(sectionId) {
+  if (restrictIfNotLoggedIn()) return;
+  document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(sectionId); if (el) el.classList.add('active');
+};
 window.refreshApplications = refreshApplications;
 window.refreshUsersList = refreshUsersList;
-window.deleteUser = deleteUser;
+window.deleteUser = async function(name) {
+  if (!confirm('Delete user: ' + name + '?')) return;
+  try { const res = await window.apiService.deleteUser(name); if (res.success) { showSuccessModal(res.message||'Deleted'); refreshUsersList(); } else alert(res.message||'Delete failed'); } catch(e){ alert('Error deleting user: '+(e && e.message)); }
+};
 window.logout = logout;
 window.closeSuccessModal = closeSuccessModal;
-window.closeViewApplicationModal = function() {
-  const modal = document.getElementById('viewApplicationModal');
-  if (modal) modal.style.display = 'none';
-  try { document.body.style.overflow = ''; } catch (e) {}
-};
 window.setLoggedInUser = setLoggedInUser;
 window.loadModalContent = loadModalContent;
+window.loadModalContentIfNeeded = loadModalContentIfNeeded;
