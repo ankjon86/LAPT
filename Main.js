@@ -26,13 +26,14 @@ function debounce(func, wait) {
   };
 }
 
-// showLoading/hideLoading now support a "modal-local" loader when the view modal is open.
-// If the view modal is visible the loader will be shown inside the modal (not full-screen).
+// showLoading/hideLoading:
+// - If the view modal is open, show a loader inside it
+// - Otherwise show a centered global loader modal (not full-screen overlay)
 function showLoading(message = 'Processing...') {
   try {
+    // If view modal is currently open, show a loader inside it
     const viewModal = document.getElementById('viewApplicationModal');
     const isViewOpen = viewModal && (viewModal.style.display === 'block' || viewModal.classList.contains('active'));
-
     if (isViewOpen) {
       // modal-local loader
       let local = document.getElementById('modal-local-loading');
@@ -59,26 +60,47 @@ function showLoading(message = 'Processing...') {
       return;
     }
 
-    // Fallback / global full-screen loader
-    const loadingEl = cachedElements['loading'];
-    if (loadingEl) {
-      const messageEl = loadingEl.querySelector('p');
-      if (messageEl) messageEl.textContent = message;
-      loadingEl.style.display = 'flex';
+    // Otherwise show a centered global loader modal appended to body
+    let globalModal = document.getElementById('global-loading-modal');
+    if (!globalModal) {
+      // backdrop
+      globalModal = document.createElement('div');
+      globalModal.id = 'global-loading-modal';
+      globalModal.className = 'global-loading-modal';
+      globalModal.innerHTML = `
+        <div class="global-loading-backdrop" role="status" aria-live="polite"></div>
+        <div class="global-loading-card" role="dialog" aria-modal="true" aria-label="Loading">
+          <div class="spinner large" aria-hidden="true"></div>
+          <div class="global-loading-message"></div>
+        </div>
+      `;
+      document.body.appendChild(globalModal);
     }
+    const msgEl = globalModal.querySelector('.global-loading-message');
+    if (msgEl) msgEl.textContent = message;
+    globalModal.style.display = 'flex';
+    // prevent background scroll / interaction while modal loader is visible
+    try { document.body.style.overflow = 'hidden'; } catch (e) {}
   } catch (e) {
+    // fallback: log and continue
     console.warn('showLoading error', e);
   }
 }
 function hideLoading() {
   try {
+    // Hide modal-local loader if present
     const local = document.getElementById('modal-local-loading');
-    if (local) {
+    if (local && local.style.display !== 'none') {
       local.style.display = 'none';
       return;
     }
-    const loadingEl = cachedElements['loading'];
-    if (loadingEl) loadingEl.style.display = 'none';
+
+    // Hide global modal loader
+    const globalModal = document.getElementById('global-loading-modal');
+    if (globalModal) {
+      globalModal.style.display = 'none';
+    }
+    try { document.body.style.overflow = ''; } catch (e) {}
   } catch (e) {
     console.warn('hideLoading error', e);
   }
@@ -95,7 +117,7 @@ function cacheElements() {
   const elements = {
     'logged-in-user': 'logged-in-user',
     'current-date': 'current-date',
-    'loading': 'loading',
+    'loading': 'loading', // kept for backwards compat, not used by showLoading anymore
     'success-modal': 'success-modal',
     'success-message': 'success-message',
     'app-number': 'app-number',
@@ -203,7 +225,9 @@ function restrictIfNotLoggedIn() {
 
 async function verifyUserOnLoad(name) {
   try {
+    showLoading('Verifying user...');
     const result = await window.apiService.login(name);
+    hideLoading();
     if (result.success) {
       localStorage.setItem('userRole', result.user?.role || '');
       localStorage.setItem('userLevel', result.user?.level || '');
@@ -218,6 +242,7 @@ async function verifyUserOnLoad(name) {
       showLoginPage();
     }
   } catch (err) {
+    hideLoading();
     console.error('verifyUserOnLoad error', err);
     showLoginPage();
   }
@@ -419,6 +444,11 @@ async function openViewApplicationModal(appData) {
       console.error('viewApplication fallback failed', e);
     }
   }
+}
+
+function closeModal() {
+  const modal = document.getElementById('newApplicationModal');
+  if (modal) modal.style.display = 'none';
 }
 
 function closeViewApplicationModal() {
