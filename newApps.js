@@ -1,6 +1,4 @@
-// newApps.js — cleaned and consolidated (full file)
-// Purpose: provide modal behavior for the "New Application" modal, avoid duplicate listeners
-// and avoid referencing non-existent functions (e.g. loadNewApplicationModal).
+
 
 console.log('newApps.js (cleaned) loaded');
 
@@ -87,7 +85,7 @@ async function showNewApplicationModal(existingAppNumber = null) {
   if (!isModalReady()) {
     try {
       showLoading('Loading application form...');
-      const loaded = await loadModalContent(); // loadModalContent is in Main.js
+      const loaded = await loadModalContent('new'); // uses loader in Main.js
       hideLoading();
       if (!loaded) {
         alert('Failed to load application form.');
@@ -830,7 +828,6 @@ function populateMonthlyTurnover(turnover) {
 
 function updateFilePreviews(documents) {
   if (!documents) return;
-  // documents may be array or object; support both shapes
   if (Array.isArray(documents)) {
     documents.forEach(doc => {
       if (doc.type === 'bankStatement') {
@@ -852,7 +849,6 @@ function updateFilePreviews(documents) {
       }
     });
   } else {
-    // object map
     if (documents.bankStatement) {
       safeSetText('bank-statement-name', documents.bankStatementName || 'File uploaded');
       const el = document.getElementById('bank-statement-name');
@@ -901,5 +897,3 @@ function formatDateForInput(dateString) {
     return '';
   }
 }
-
-/* End of newApps.js */
