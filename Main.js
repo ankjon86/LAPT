@@ -30,43 +30,40 @@ function debounce(func, wait) {
 }
 
 // showLoading/hideLoading:
-// - If the view modal is open, show a loader inside it
-// - Otherwise show a centered global loader modal (not full-screen overlay)
+// - If the view modal is open, show a loader inside it (now uses a small centered card like the global loader)
+// - Otherwise show a centered global loader modal appended to body
 function showLoading(message = 'Processing...') {
   try {
     // If view modal is currently open, show a loader inside it
     const viewModal = document.getElementById('viewApplicationModal');
     const isViewOpen = viewModal && (viewModal.style.display === 'block' || viewModal.classList.contains('active'));
     if (isViewOpen) {
-      // modal-local loader
+      // modal-local loader: centered card inside modal-content (matches global loader look)
       let local = document.getElementById('modal-local-loading');
       if (!local) {
         local = document.createElement('div');
         local.id = 'modal-local-loading';
         local.className = 'modal-local-loading';
-        const spinner = document.createElement('div');
-        spinner.className = 'spinner small';
-        const text = document.createElement('div');
-        text.className = 'modal-local-loading-text';
-        text.textContent = message;
-        local.appendChild(spinner);
-        local.appendChild(text);
-
+        local.innerHTML = `
+          <div class="modal-local-card" role="status" aria-live="polite" aria-label="Loading">
+            <div class="spinner large" aria-hidden="true"></div>
+            <div class="modal-local-message"></div>
+          </div>
+        `;
         const container = viewModal.querySelector('.modal-content') || viewModal;
-        container.style.position = container.style.position || 'relative';
+        // ensure container is positioned to allow absolute centering overlay
+        if (!container.style.position) container.style.position = 'relative';
         container.appendChild(local);
-      } else {
-        const text = local.querySelector('.modal-local-loading-text');
-        if (text) text.textContent = message;
-        local.style.display = 'flex';
       }
+      const msgEl = local.querySelector('.modal-local-message');
+      if (msgEl) msgEl.textContent = message;
+      local.style.display = 'flex';
       return;
     }
 
     // Otherwise show a centered global loader modal appended to body
     let globalModal = document.getElementById('global-loading-modal');
     if (!globalModal) {
-      // backdrop + centered card
       globalModal = document.createElement('div');
       globalModal.id = 'global-loading-modal';
       globalModal.className = 'global-loading-modal';
@@ -161,7 +158,6 @@ function diffUpdateTable(tableId, applications) {
   const tbody = document.querySelector(`#${tableId}`);
   if (!tbody) return;
 
-  // Map existing rows by appNumber
   const existingRows = new Map();
   Array.from(tbody.children).forEach(row => {
     const anchor = row.querySelector('.app-number-link');
