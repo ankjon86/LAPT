@@ -1390,3 +1390,78 @@ body {
   40% { background: rgba(250, 244, 195, 0.6); }
   100% { background: transparent; }
 }
+
+/* Additions / overrides to Main.css to style the modal-local loader like the login/verify spinner */
+
+/* Modal-local loading overlay (centered card inside modal-content) */
+.modal-local-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+  pointer-events: auto;
+}
+
+/* Card inside the modal-local overlay — matches global-loading-card style */
+.modal-local-card {
+  background: var(--white);
+  padding: 16px 20px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+  max-width: 88%;
+  text-align: center;
+}
+
+/* Message text inside the local card */
+.modal-local-message {
+  color: var(--gray-700);
+  font-weight: 600;
+  font-size: 0.98rem;
+}
+
+/* Reuse the large spinner styling for the modal-local card */
+.modal-local-card .spinner.large {
+  border: 5px solid rgba(0,0,0,0.08);
+  border-top: 5px solid var(--primary-600);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Ensure the small inline spinner used in section headers remains unchanged */
+.section-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gray-600);
+  font-size: 0.9rem;
+  margin-left: 8px;
+}
+.section-spinner .spinner-inline {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0,0,0,0.08);
+  border-top: 2px solid var(--primary-600);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Row updated highlight */
+.row-updated {
+  animation: highlight-row 1.2s ease;
+}
+
+/* gentle yellow fade for updated rows */
+@keyframes highlight-row {
+  0% { background: rgba(250, 244, 195, 0.95); }
+  40% { background: rgba(250, 244, 195, 0.6); }
+  100% { background: transparent; }
+}
