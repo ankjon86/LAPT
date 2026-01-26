@@ -513,6 +513,12 @@ async function openViewApplicationModal(appData) {
   }
 }
 
+function closeModal() {
+  const modal = document.getElementById('newApplicationModal');
+  if (modal) modal.style.display = 'none';
+}
+
+
 function closeViewApplicationModal() {
   const modal = document.getElementById('viewApplicationModal');
   if (modal) {
@@ -754,3 +760,4 @@ window.closeSuccessModal = closeSuccessModal;
 window.setLoggedInUser = setLoggedInUser;
 window.loadModalContent = loadModalContent;
 window.loadModalContentIfNeeded = loadModalContentIfNeeded;
+
