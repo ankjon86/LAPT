@@ -9,7 +9,7 @@ let refreshInterval;
 let currentViewingAppData = null;
 
 // Per-section state to avoid flicker and handle concurrent requests
-const sectionStates = {}; // { [sectionId]: { requestId: number } }
+const sectionStates = {}; // { [sectionId]: { requestId: number, loading: boolean } }
 
 // ----------- CORE HELPERS (define early so other code can call them) -----------
 function clearIntervals() {
@@ -30,15 +30,13 @@ function debounce(func, wait) {
 }
 
 // showLoading/hideLoading:
-// - If the view modal is open, show a loader inside it (now uses a small centered card like the global loader)
+// - If the view modal is open, show a loader inside it (centered card)
 // - Otherwise show a centered global loader modal appended to body
 function showLoading(message = 'Processing...') {
   try {
-    // If view modal is currently open, show a loader inside it
     const viewModal = document.getElementById('viewApplicationModal');
     const isViewOpen = viewModal && (viewModal.style.display === 'block' || viewModal.classList.contains('active'));
     if (isViewOpen) {
-      // modal-local loader: centered card inside modal-content (matches global loader look)
       let local = document.getElementById('modal-local-loading');
       if (!local) {
         local = document.createElement('div');
@@ -51,7 +49,6 @@ function showLoading(message = 'Processing...') {
           </div>
         `;
         const container = viewModal.querySelector('.modal-content') || viewModal;
-        // ensure container is positioned to allow absolute centering overlay
         if (!container.style.position) container.style.position = 'relative';
         container.appendChild(local);
       }
@@ -61,7 +58,6 @@ function showLoading(message = 'Processing...') {
       return;
     }
 
-    // Otherwise show a centered global loader modal appended to body
     let globalModal = document.getElementById('global-loading-modal');
     if (!globalModal) {
       globalModal = document.createElement('div');
@@ -87,18 +83,13 @@ function showLoading(message = 'Processing...') {
 
 function hideLoading() {
   try {
-    // Hide modal-local loader if present
     const local = document.getElementById('modal-local-loading');
     if (local && local.style.display !== 'none') {
       local.style.display = 'none';
       return;
     }
-
-    // Hide global modal loader
     const globalModal = document.getElementById('global-loading-modal');
-    if (globalModal) {
-      globalModal.style.display = 'none';
-    }
+    if (globalModal) globalModal.style.display = 'none';
     try { document.body.style.overflow = ''; } catch (e) {}
   } catch (e) {
     console.warn('hideLoading error', e);
@@ -107,8 +98,8 @@ function hideLoading() {
 
 function escapeHtml(s) {
   if (!s) return '';
-  return s.toString().replace(/[&<>"']/g, function(m){ 
-    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; 
+  return s.toString().replace(/[&<>"']/g, function(m){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
   });
 }
 
@@ -138,12 +129,17 @@ function setSectionHeaderLoading(sectionId, isLoading) {
   }
 }
 
+// Create row and attach click handler that passes the anchor element for spinner placement
 function createRowForApplication(app) {
   const tr = document.createElement('tr');
 
   const tdApp = document.createElement('td'); tdApp.className='app-number';
   const a = document.createElement('a'); a.href='javascript:void(0)'; a.className='app-number-link';
-  a.textContent = app.appNumber || ''; a.addEventListener('click', () => handleAppNumberClick(app.appNumber));
+  a.textContent = app.appNumber || '';
+  a.addEventListener('click', (e) => {
+    // pass the anchor element so handler can show inline spinner next to it
+    handleAppNumberClick(app.appNumber, e.currentTarget);
+  });
   tdApp.appendChild(a); tr.appendChild(tdApp);
 
   const tdName = document.createElement('td'); tdName.className='applicant-name'; tdName.textContent = app.applicantName || 'N/A'; tr.appendChild(tdName);
@@ -513,12 +509,6 @@ async function openViewApplicationModal(appData) {
   }
 }
 
-function closeModal() {
-  const modal = document.getElementById('newApplicationModal');
-  if (modal) modal.style.display = 'none';
-}
-
-
 function closeViewApplicationModal() {
   const modal = document.getElementById('viewApplicationModal');
   if (modal) {
@@ -583,54 +573,88 @@ function populateTable(tableId, applications) {
   diffUpdateTable(tableId, applications || []);
 }
 
-// handle clicking an application number — improved flow (load modal first so modal-local loader is used)
-async function handleAppNumberClick(appNumber) {
+// ----------- handleAppNumberClick (fixed flow) ----------
+/*
+  Important change:
+  - We no longer display the view modal before fetching the application details.
+  - We show a small inline spinner next to the clicked application number while fetching.
+  - After fetching, we decide whether to open the 'new' modal (for NEW/DRAFT) or the 'view' modal.
+  - This prevents both modals appearing at once.
+*/
+async function handleAppNumberClick(appNumber, anchorEl = null) {
   if (!appNumber) { alert('Invalid application number'); return; }
   const userName = localStorage.getItem('loggedInName') || '';
 
-  // Load modal HTML and show modal first (so showLoading uses modal-local loader)
-  const loaded = await loadModalContent('view');
-  if (!loaded) {
-    alert('Failed to load view modal. Please refresh the page.');
-    return;
-  }
-
-  const modal = document.getElementById('viewApplicationModal');
-  if (!modal) {
-    console.error('viewApplicationModal element not found');
-    return;
-  }
-  modal.style.display = 'block';
-  modal.classList.add('active');
-
-  // Request details without letting ApiService toggle the legacy overlay.
-  // We pass showLoading:false to apiService and use our modal-local showLoading instead.
-  showLoading('Loading application details...');
+  // Add inline spinner next to the clicked anchor (or find one)
+  let spinner = null;
   try {
+    if (!anchorEl) {
+      // try to find the first anchor with matching textContent
+      const anchors = Array.from(document.querySelectorAll('.app-number-link'));
+      anchorEl = anchors.find(a => a.textContent === appNumber) || null;
+    }
+    if (anchorEl) {
+      spinner = document.createElement('span');
+      spinner.className = 'inline-loading';
+      spinner.innerHTML = `<span class="spinner-inline" aria-hidden="true" style="margin-left:8px;"></span>`;
+      anchorEl.parentNode && anchorEl.parentNode.appendChild(spinner);
+    }
+  } catch (e) {
+    console.warn('Could not show inline spinner', e);
+  }
+
+  try {
+    // Fetch details without letting ApiService show the legacy overlay.
     const response = await window.apiService.getApplicationDetails(appNumber, userName, { showLoading: false });
-    hideLoading();
+
+    // remove inline spinner
+    if (spinner && spinner.parentNode) spinner.parentNode.removeChild(spinner);
+
     if (response && response.success && response.data) {
       const appData = response.data;
-      if (appData.status === 'NEW' && appData.completionStatus === 'DRAFT') {
+
+      // If this application is a NEW draft, open the New Application modal only
+      if (appData.status === 'NEW' && (appData.completionStatus === 'DRAFT' || appData.completionStatus === 'Draft' || appData.completionStatus === 'draft')) {
+        // Load new modal content if needed, then show newApplication modal in edit mode
         const ok = await loadModalContent('new');
         if (!ok) { alert('Failed to load form.'); return; }
-        if (typeof showNewApplicationModal === 'function') showNewApplicationModal(appNumber);
-      } else {
-        if (typeof initViewApplicationModal === 'function') {
-          try { initViewApplicationModal(appData); } catch (e) { console.warn('initViewApplicationModal error', e); }
+        if (typeof showNewApplicationModal === 'function') {
+          showNewApplicationModal(appNumber);
         } else {
-          await openViewApplicationModal(appData);
+          // fallback: open new modal element manually (if any)
+          const nm = document.getElementById('newApplicationModal');
+          if (nm) nm.style.display = 'block';
         }
+        return;
+      }
+
+      // Otherwise open view modal (load content first, then initialize)
+      const okView = await loadModalContent('view');
+      if (!okView) {
+        alert('Failed to load view modal. Please refresh the page.');
+        return;
+      }
+
+      // Show modal (so modal-local loader can be used by any subsequent actions)
+      const modal = document.getElementById('viewApplicationModal');
+      if (modal) {
+        modal.style.display = 'block';
+        modal.classList.add('active');
+      }
+
+      // Initialize view modal with data
+      if (typeof initViewApplicationModal === 'function') {
+        try { initViewApplicationModal(appData); } catch (e) { console.warn('initViewApplicationModal error', e); }
+      } else {
+        await openViewApplicationModal(appData);
       }
     } else {
       alert('Failed to load application: ' + (response?.message || 'Not found'));
-      closeViewApplicationModal();
     }
   } catch (err) {
-    hideLoading();
+    if (spinner && spinner.parentNode) spinner.parentNode.removeChild(spinner);
     console.error('Error loading application details', err);
     alert('Error loading application details: ' + (err && err.message ? err.message : err));
-    closeViewApplicationModal();
   }
 }
 
@@ -760,4 +784,3 @@ window.closeSuccessModal = closeSuccessModal;
 window.setLoggedInUser = setLoggedInUser;
 window.loadModalContent = loadModalContent;
 window.loadModalContentIfNeeded = loadModalContentIfNeeded;
-
