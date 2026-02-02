@@ -153,6 +153,11 @@ async function showNewApplicationModal(existingAppNumber = null) {
   }
 }
 
+function closeModal() {
+  const modal = document.getElementById('newApplicationModal');
+  if (modal) modal.style.display = 'none';
+}
+
 // ---- Close modal ----
 function closeNewApplicationModal() {
   console.log('closeNewApplicationModal called');
@@ -918,3 +923,4 @@ function formatDateForInput(dateString) {
     return '';
   }
 }
+
